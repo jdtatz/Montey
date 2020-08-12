@@ -2,8 +2,8 @@ from __future__ import annotations
 import math
 import time
 import numpy as np
-import numba as nb
-from numba import types, cuda
+from numba import cuda
+from numba.core.types import int32, float32, Tuple
 import numba.cuda.random
 from .vector import Vector, vmulv, vf2i, vi2f
 from .specification import Specification, specification_from_record
@@ -25,12 +25,12 @@ PI_2 = np.float32(2 * math.pi)
 EPS_N_1 = np.float32(1 - 1e-6)
 
 
-@nb.cuda.jit(nb.f4(nb.f4), device=True)
+@cuda.jit(float32(float32), device=True)
 def sqr(x):
     return x * x
 
 
-@nb.cuda.jit(nb.i4(nb.f4), device=True)
+@cuda.jit(int32(float32), device=True)
 def signum(x):
     if x > f0:
         return i1
@@ -40,7 +40,7 @@ def signum(x):
         return i0
 
 
-@nb.cuda.jit(nb.types.Tuple((nb.f4, nb.i4))(nb.i4, Vector.numba_type(nb.f4), Vector.numba_type(nb.f4), Vector.numba_type(nb.f4)), device=True)
+@cuda.jit(Tuple((float32, int32))(int32, Vector.numba_type(float32), Vector.numba_type(float32), Vector.numba_type(float32)), device=True)
 def intersect(prev, p, v, voxel_size):
     dx = (voxel_size.x if prev == i0 else (voxel_size.x - p.x if v.x > f0 else p.x))
     dy = (voxel_size.y if prev == i1 else (voxel_size.y - p.y if v.y > f0 else p.y))
@@ -56,7 +56,7 @@ def intersect(prev, p, v, voxel_size):
         return hz, i2
 
 
-@nb.cuda.jit(nb.f4(nb.f4, nb.f4), device=True)
+@cuda.jit(float32(float32, float32), device=True)
 def henyey_greenstein_phase(g, rand):
     if g != 0:
         g2 = sqr(g)
@@ -66,19 +66,19 @@ def henyey_greenstein_phase(g, rand):
 
 
 def create_monte_carlo(source: Source):
-    vec_type = Vector.numba_type(nb.f4)
+    vec_type = Vector.numba_type(float32)
     spec_type = Specification.numba_type()
-    rng_type = nb.cuda.random.xoroshiro128p_type[::1]
+    rng_type = cuda.random.xoroshiro128p_type[::1]
     launch = source.create_launch_function()
-    launch = nb.cuda.jit(types.Tuple((vec_type, vec_type))(spec_type, rng_type, nb.i4), device=True)(launch)
+    launch = cuda.jit(Tuple((vec_type, vec_type))(spec_type, rng_type, int32), device=True)(launch)
 
-    @nb.cuda.jit(fastmath=True)
+    @cuda.jit(fastmath=True)
     def monte_carlo(counter, spec, states, media, rng, detpos, fluence, detp):
         spec = specification_from_record(spec)
-        buffer = nb.cuda.shared.array(0, nb.f4)
+        buffer = cuda.shared.array(0, float32)
         nmedia = states.shape[0] - 1
-        gid = nb.cuda.grid(1)
-        tid = nb.cuda.threadIdx.x
+        gid = cuda.grid(1)
+        tid = cuda.threadIdx.x
         ppath_ind = tid*nmedia
         count = i0
         weight = f0
@@ -102,7 +102,7 @@ def create_monte_carlo(source: Source):
                     weight *= f4*state.n*n_out/sqr(state.n+n_out)
                 buffer[ppath_ind:ppath_ind+nmedia] = f0
             # move
-            rand = nb.cuda.random.xoroshiro128p_uniform_float32(rng, gid)
+            rand = cuda.random.xoroshiro128p_uniform_float32(rng, gid)
             s = -math.log(rand) / (state.mua + state.mus)
             dist, boundry = intersect(-i1, p - vmulv(vi2f(idx), spec.voxel_size), v, spec.voxel_size)
             while s > dist:
@@ -149,7 +149,7 @@ def create_monte_carlo(source: Source):
                     for i in range(detpos.shape[0]):
                         if sqr(detpos[i, 0] - p.x) + sqr(detpos[i, 1] - p.y) + sqr(detpos[i, 2] - p.z) < sqr(detpos[i, 3]):
                             if detpos[i, 3] > 0:
-                                detid = nb.cuda.atomic.add(counter, 0, 1)
+                                detid = cuda.atomic.add(counter, 0, 1)
                                 detp[detid, 0] = i
                                 detp[detid, 1] = weight
                                 for i in range(nmedia):
@@ -162,14 +162,14 @@ def create_monte_carlo(source: Source):
             # absorb
             delta_weight = weight * state.mua / (state.mua + state.mus)
             if spec.isflu:
-                # nb.cuda.atomic.add(fluence, (ix, iy, iz), delta_weight)
-                nb.cuda.atomic.add(fluence, (idx.x, idx.y, idx.z, np.int32(t//spec.tstep)), delta_weight)
+                # cuda.atomic.add(fluence, (ix, iy, iz), delta_weight)
+                cuda.atomic.add(fluence, (idx.x, idx.y, idx.z, np.int32(t//spec.tstep)), delta_weight)
             weight -= delta_weight
             # scatter
-            rand = nb.cuda.random.xoroshiro128p_uniform_float32(rng, gid)
+            rand = cuda.random.xoroshiro128p_uniform_float32(rng, gid)
             ct = henyey_greenstein_phase(state.g, rand)
             st = math.sqrt(f1 - sqr(ct))
-            rand = nb.cuda.random.xoroshiro128p_uniform_float32(rng, gid)
+            rand = cuda.random.xoroshiro128p_uniform_float32(rng, gid)
             phi = PI_2 * rand
             sp = math.sin(phi)
             cp = math.cos(phi)
@@ -181,7 +181,7 @@ def create_monte_carlo(source: Source):
             nscat += i1
             # roulette
             if weight < roulette_threshold:
-                rand = nb.cuda.random.xoroshiro128p_uniform_float32(rng, gid)
+                rand = cuda.random.xoroshiro128p_uniform_float32(rng, gid)
                 reset = rand > recip_roulette_const
                 weight *= roulette_const
 

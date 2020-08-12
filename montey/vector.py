@@ -1,8 +1,9 @@
 from __future__ import annotations
 import operator
 import numpy as np
-import numba as nb
 from numba import cuda, types
+from numba.extending import intrinsic
+from numba.core.types import int32, float32
 from numba.core.typing import templates
 from numba.core.typing.templates import infer as register_cpu, infer_getattr as register_cpu_attr, infer_global as register_cpu_global
 from numba.core.imputils import lower_builtin as lower_cpu
@@ -101,10 +102,10 @@ def impl_vector_sub(context, builder, sig, args):
 class VectorMul(templates.ConcreteTemplate):
     key = operator.mul
     cases = [
-        templates.signature(_fvec, _fvec, nb.f4),
-        templates.signature(_fvec, nb.f4, _fvec),
-        templates.signature(_ivec, _ivec, nb.i4),
-        templates.signature(_ivec, nb.i4, _ivec),
+        templates.signature(_fvec, _fvec, float32),
+        templates.signature(_fvec, float32, _fvec),
+        templates.signature(_ivec, _ivec, int32),
+        templates.signature(_ivec, int32, _ivec),
     ]
 
 
@@ -112,14 +113,14 @@ register_cpu_global(operator.mul, types.Function(VectorMul))
 register_gpu_global(operator.mul, types.Function(VectorMul))
 
 
-@lower_cpu(operator.mul, _fvec, nb.f4)
-@lower_cpu(operator.mul, nb.f4, _fvec)
-@lower_cpu(operator.mul, _ivec, nb.i4)
-@lower_cpu(operator.mul, nb.i4, _ivec)
-@lower_gpu(operator.mul, _fvec, nb.f4)
-@lower_gpu(operator.mul, nb.f4, _fvec)
-@lower_gpu(operator.mul, _ivec, nb.i4)
-@lower_gpu(operator.mul, nb.i4, _ivec)
+@lower_cpu(operator.mul, _fvec, float32)
+@lower_cpu(operator.mul, float32, _fvec)
+@lower_cpu(operator.mul, _ivec, int32)
+@lower_cpu(operator.mul, int32, _ivec)
+@lower_gpu(operator.mul, _fvec, float32)
+@lower_gpu(operator.mul, float32, _fvec)
+@lower_gpu(operator.mul, _ivec, int32)
+@lower_gpu(operator.mul, int32, _ivec)
 def impl_vector_mul(context, builder, sig, args):
     return context.compile_internal(builder, Vector.__mul__, sig, args)
 
@@ -129,8 +130,8 @@ def impl_vector_mul(context, builder, sig, args):
 class VectorDiv(templates.ConcreteTemplate):
     key = operator.truediv
     cases = [
-        templates.signature(_fvec, _fvec, nb.f4),
-        templates.signature(_ivec, _ivec, nb.i4),
+        templates.signature(_fvec, _fvec, float32),
+        templates.signature(_ivec, _ivec, int32),
     ]
 
 
@@ -138,10 +139,10 @@ register_cpu_global(operator.truediv, types.Function(VectorDiv))
 register_gpu_global(operator.truediv, types.Function(VectorDiv))
 
 
-@lower_cpu(operator.truediv, _fvec, nb.f4)
-@lower_cpu(operator.truediv, _ivec, nb.i4)
-@lower_gpu(operator.truediv, _fvec, nb.f4)
-@lower_gpu(operator.truediv, _ivec, nb.i4)
+@lower_cpu(operator.truediv, _fvec, float32)
+@lower_cpu(operator.truediv, _ivec, int32)
+@lower_gpu(operator.truediv, _fvec, float32)
+@lower_gpu(operator.truediv, _ivec, int32)
 def impl_vector_div(context, builder, sig, args):
     return context.compile_internal(builder, Vector.__truediv__, sig, args)
 
@@ -151,8 +152,8 @@ def impl_vector_div(context, builder, sig, args):
 class VectorMatMul(templates.ConcreteTemplate):
     key = operator.matmul
     cases = [
-        templates.signature(nb.f4, _fvec, _fvec),
-        templates.signature(nb.i4, _ivec, _ivec),
+        templates.signature(float32, _fvec, _fvec),
+        templates.signature(int32, _ivec, _ivec),
     ]
 
 
@@ -168,13 +169,23 @@ def impl_vector_matmul(context, builder, sig, args):
     return context.compile_internal(builder, Vector.__matmul__, sig, args)
 
 
+@intrinsic
+def fused_multiply_add(typingctx, a, b, c):
+    if isinstance(a, types.Float) and a == b and a == c:
+        sig = a(a, b, c)
+
+        def codegen(context, builder, signature, args):
+            return builder.fma(*args)
+        return sig, codegen
+
+
 # @register_cpu
 @register_gpu
 class VectorFMA(templates.ConcreteTemplate):
     key = (_fvec, "multiply_add")
     is_method = True
     cases = [
-        templates.signature(_fvec, nb.f4, _fvec, recvr=_fvec),
+        templates.signature(_fvec, float32, _fvec, recvr=_fvec),
     ]
 
 
@@ -200,14 +211,14 @@ class VectorAttrs(templates.AttributeTemplate):
 register_gpu_global((_fvec, "multiply_add"), types.BoundFunction(VectorFMA, _fvec))
 
 
-@lower_gpu((_fvec, 'multiply_add'), _fvec, nb.f4, _fvec)
+@lower_gpu((_fvec, 'multiply_add'), _fvec, float32, _fvec)
 def impl_vector_fma(context, builder, sig, args):
     return context.compile_internal(builder, lambda a, b, c: Vector(x=cuda.fma(a.x, b, c.x), y=cuda.fma(a.y, b, c.y), z=cuda.fma(a.z, b, c.z)), sig, args)
 
 
-@lower_cpu((_fvec, 'multiply_add'), _fvec, nb.f4, _fvec)
+@lower_cpu((_fvec, 'multiply_add'), _fvec, float32, _fvec)
 def impl_vector_fma(context, builder, sig, args):
-    return context.compile_internal(builder, Vector.multiply_add, sig, args)
+    return context.compile_internal(builder, lambda a, b, c: Vector(x=fused_multiply_add(a.x, b, c.x), y=fused_multiply_add(a.y, b, c.y), z=fused_multiply_add(a.z, b, c.z)), sig, args)
 
 
 @cuda.jit(device=True)
@@ -215,11 +226,11 @@ def vmulv(lhs, rhs):
     return Vector(x=lhs.x * rhs.x, y=lhs.y * rhs.y, z=lhs.z * rhs.z)
 
 
-@cuda.jit(Vector.numba_type(nb.f4)(Vector.numba_type(nb.i4)), device=True)
+@cuda.jit(Vector.numba_type(float32)(Vector.numba_type(int32)), device=True)
 def vi2f(v):
     return Vector(x=np.float32(v.x), y=np.float32(v.y), z=np.float32(v.z))
 
 
-@cuda.jit(Vector.numba_type(nb.i4)(Vector.numba_type(nb.f4)), device=True)
+@cuda.jit(Vector.numba_type(int32)(Vector.numba_type(float32)), device=True)
 def vf2i(v):
     return Vector(x=np.int32(v.x), y=np.int32(v.y), z=np.int32(v.z))

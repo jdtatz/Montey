@@ -2,7 +2,6 @@ import math
 import numpy as np
 from abc import ABC, abstractmethod
 from typing import Callable, Tuple, Collection
-from numba import cuda
 from numba.cuda.random import xoroshiro128p_type, xoroshiro128p_uniform_float32
 from .vector import Vector
 from .specification import Specification
