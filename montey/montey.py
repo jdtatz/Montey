@@ -4,7 +4,7 @@ import cmath
 import time
 import numpy as np
 from numba import cuda, types
-from numba.core.types import int32, int64, float32, complex64
+from numba.core.types import int32, int64, float32, float64, complex64, complex128
 import numba.cuda.random
 from typing import NamedTuple, Tuple, Callable, Any, Optional
 from .vector import Vector, vmulv, vf2i, vi2f
@@ -13,12 +13,12 @@ from .sources import Source
 
 
 class MonteCarloResults(NamedTuple):
-    fluence: float32[:, :, :, :1]
-    phiCW: float32[::1]
-    phiFD: complex64[::1]
-    phiTD: float32[:, ::1]
-    phiDist: float32[:, :, ::1]
-    g1: float32[:, ::1]
+    fluence: float64[:, :, :, :1]
+    phiCW: float64[::1]
+    phiFD: complex128[::1]
+    phiTD: float64[:, ::1]
+    phiDist: float64[:, :, ::1]
+    g1: float64[:, ::1]
     photonCounter: int64[:, ::1]
 
 
@@ -273,12 +273,12 @@ def create_monte_carlo(source: Source) -> Tuple[Any, Callable[[Specification, np
             )
             dt = time.time() - t1
         pcount = nthread * spec.nphoton
-        phiCW = phi_td.sum(axis=(0, 2)) / (detector_area[:, np.newaxis] * pcount)
-        phiFD = phi_fd.sum(axis=0) / (detector_area * pcount)
-        phiTD = phi_td.sum(axis=0) / (spec.dt * detector_area[:, np.newaxis] * pcount)
+        phiCW = phi_td.sum(axis=(0, 2), dtype=np.float64) / (detector_area[:, np.newaxis] * pcount)
+        phiFD = phi_fd.sum(axis=0, dtype=np.complex128) / (detector_area * pcount)
+        phiTD = phi_td.sum(axis=0, dtype=np.float64) / (spec.dt * detector_area[:, np.newaxis] * pcount)
         # TODO verify normalization for phiDist & g1
-        phiDist = phi_dist.sum(axis=0) / phi_td.sum(axis=(0, 2))[:, np.newaxis, np.newaxis]
-        g1 = g1_top.sum(axis=0) / phi_td.sum(axis=(0, 2))[:, np.newaxis]
+        phiDist = phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, np.newaxis, np.newaxis]
+        g1 = g1_top.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, np.newaxis]
         res = MonteCarloResults(
             fluence=fluence,
             phiCW=phiCW,
