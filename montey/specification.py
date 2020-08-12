@@ -11,9 +11,12 @@ T = TypeVar('T')
 class Specification(NamedTuple, Generic[T]):
     nphoton: int
     voxel_size: Vector[T]
-    tend: T
-    tstep: T
+    lifetime_max: T
+    dt: T
     lightspeed: T
+    freq: T
+    # 2 𝜋 / λ
+    wavenumber: T
     isflu: bool
     isdet: bool
 
@@ -22,9 +25,11 @@ class Specification(NamedTuple, Generic[T]):
         return np.dtype([
             ('nphoton', 'i4'),
             ('voxel_size', ('f4', 3)),
-            ('tend', 'f4'),
-            ('tstep', 'f4'),
+            ('lifetime_max', 'f4'),
+            ('dt', 'f4'),
             ('lightspeed', 'f4'),
+            ('freq', 'f4'),
+            ('wavenumber', 'f4'),
             ('isflu', np.bool_),
             ('isdet', np.bool_)
         ])
@@ -36,7 +41,7 @@ class Specification(NamedTuple, Generic[T]):
 
     @staticmethod
     def numba_type():
-        return nb.types.NamedTuple((nb.i4, Vector.numba_type(nb.f4), nb.f4, nb.f4, nb.f4, nb.bool_, nb.bool_), Specification)
+        return nb.types.NamedTuple((nb.i4, Vector.numba_type(nb.f4), nb.f4, nb.f4, nb.f4, nb.f4, nb.f4, nb.bool_, nb.bool_), Specification)
 
 
 @cuda.jit(Specification.numba_type()(nb.from_dtype(Specification.numpy_dtype())), device=True)
@@ -44,12 +49,14 @@ def specification_from_record(record):
     return Specification(
         nphoton=record.nphoton,
         voxel_size=Vector(record.voxel_size[0], record.voxel_size[1], record.voxel_size[2]),
-        tend=record.tend,
-        tstep=record.tstep,
+        lifetime_max=record.lifetime_max,
+        dt=record.dt,
         lightspeed=record.lightspeed,
+        freq=record.freq,
+        wavenumber=record.wavenumber,
         isflu=record.isflu,
         isdet=record.isdet,
     )
 
 
-state_dtype = np.dtype([('mua', 'f4'), ('mus', 'f4'), ('g', 'f4'), ('n', 'f4')])
+state_dtype = np.dtype([('mua', 'f4'), ('mus', 'f4'), ('g', 'f4'), ('n', 'f4'), ('BFi', 'f4')])

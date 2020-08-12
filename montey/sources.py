@@ -4,10 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Callable, Tuple, Collection
 from numba.cuda.random import xoroshiro128p_type, xoroshiro128p_uniform_float32
 from .vector import Vector
-from .specification import Specification
 
-
-LaunchFunctionType = Callable[[Specification, xoroshiro128p_type[::], int], Tuple[Vector, Vector]]
+LaunchFunctionType = Callable[[xoroshiro128p_type[::1], int], Tuple[Vector, Vector]]
 Pi = np.float32(np.pi)
 Pi_2 = np.float32(np.pi * 2)
 
@@ -27,7 +25,7 @@ class Pencil(Source):
         srcpos = self.srcpos.numba_compat()
         srcdir = self.srcdir.numba_compat()
 
-        def launch(_spec, _rng, _idx):
+        def launch(_rng, _idx):
             return srcpos, srcdir
         return launch
 
@@ -48,7 +46,7 @@ class UniformDisk(Source):
         # use cross product to generate second orthogonal vector to disk normal
         n2 = Vector(*np.cross(srcdir, n1)).numba_compat()
 
-        def launch(_spec, rng, idx):
+        def launch(rng, idx):
             r = radius * math.sqrt(xoroshiro128p_uniform_float32(rng, idx))
             theta = xoroshiro128p_uniform_float32(rng, idx) * Pi_2
             x = r * math.cos(theta)
@@ -77,7 +75,7 @@ class UniformDiskArray(Source):
         # use cross product to generate second orthogonal vector to disk normal
         n2s = tuple(Vector(*np.cross(n, n1)).numba_compat() for n, n1 in zip(srcdir, n1s))
 
-        def launch(_spec, rng, idx):
+        def launch(rng, idx):
             i = np.int32(xoroshiro128p_uniform_float32(rng, idx) * N)
             r = radii[i] * math.sqrt(xoroshiro128p_uniform_float32(rng, idx))
             theta = xoroshiro128p_uniform_float32(rng, idx) * Pi_2
