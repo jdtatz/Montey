@@ -232,7 +232,7 @@ def create_monte_carlo(source: Source) -> Tuple[Any, Callable[[Specification, np
         nmedia = (states.shape[0] - 1)
         ntof = int(np.ceil(spec.lifetime_max / spec.dt))
         ndet = detpos.shape[0]
-        fluence = np.zeros((200, 200, 200, ntof), np.float32)
+        fluence = np.zeros((*media.shape, ntof), np.float32)
         phi_td = np.zeros((nthread, ndet, ntof), np.float32)
         phi_fd = np.zeros((nthread, ndet), np.complex64)
         g1_top = np.zeros((nthread, ndet, len(tau)), np.float32)
