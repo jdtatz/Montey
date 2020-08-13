@@ -109,6 +109,9 @@ def create_monte_carlo(source: Source) -> Tuple[Any, Callable[[Specification, np
                 weight = inital_weight
                 p, v = launch(rng, gid)
                 idx = vf2i(Vector(p.x // spec.voxel_size.x, p.y // spec.voxel_size.y, p.z // spec.voxel_size.z))
+                if not (i0 <= idx.x < np.int32(media.shape[0]) and i0 <= idx.y < np.int32(media.shape[1]) and i0 <= idx.z < np.int32(media.shape[2])):
+                    reset = True
+                    continue
                 t = f0
                 mid = media[idx.x, idx.y, idx.z]
                 state = states[mid]
