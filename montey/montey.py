@@ -273,7 +273,7 @@ def create_monte_carlo(source: Source) -> Tuple[Any, Callable[[Specification, np
             )
             dt = time.time() - t1
         pcount = nthread * spec.nphoton
-        phiCW = phi_td.sum(axis=(0, 2), dtype=np.float64) / (detector_area[:, np.newaxis] * pcount)
+        phiCW = phi_td.sum(axis=(0, 2), dtype=np.float64) / (detector_area * pcount)
         phiFD = phi_fd.sum(axis=0, dtype=np.complex128) / (detector_area * pcount)
         phiTD = phi_td.sum(axis=0, dtype=np.float64) / (spec.dt * detector_area[:, np.newaxis] * pcount)
         # TODO verify normalization for phiDist & g1
