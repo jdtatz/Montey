@@ -1,19 +1,19 @@
 #![allow(clippy::many_single_char_names, clippy::unreadable_literal, clippy::excessive_precision)]
-use rand::prelude::{Rng, Distribution};
-use rand::distributions::uniform::SampleUniform;
-pub use rand_xoshiro::Xoroshiro128Plus as PRng;
 use num::traits::AsPrimitive;
-#[cfg(target_arch="nvptx64")]
+#[cfg(target_arch = "nvptx64")]
 use nvptx_sys::Float;
+use rand::distributions::uniform::SampleUniform;
+use rand::prelude::{Distribution, Rng};
+pub use rand_xoshiro::Xoroshiro128Plus as PRng;
 
-#[cfg(not(target_arch="nvptx64"))]
+#[cfg(not(target_arch = "nvptx64"))]
 pub trait Float: 'static + num::traits::Float {
     const ZERO: Self;
     const ONE: Self;
     fn copysign(self, sign: Self) -> Self;
 }
 
-#[cfg(not(target_arch="nvptx64"))]
+#[cfg(not(target_arch = "nvptx64"))]
 impl Float for f32 {
     const ZERO: Self = 0f32;
     const ONE: Self = 1f32;
@@ -28,7 +28,6 @@ pub trait BoolExt {
     fn then_some<T>(self, t: T) -> Option<T>;
     fn if_else<T>(self, true_val: T, false_val: T) -> T;
 }
-
 
 impl BoolExt for bool {
     fn then<T, F: FnOnce() -> T>(self, f: F) -> Option<T> {
@@ -56,9 +55,9 @@ impl BoolExt for bool {
     }
 }
 
-
 fn polynomial<F: Float + SampleUniform>(z: F, coeff: &[f64]) -> F
-    where f64: AsPrimitive<F>
+where
+    f64: AsPrimitive<F>,
 {
     let n = coeff.len();
     if n == 0 {
@@ -107,13 +106,10 @@ const SHAW_Q: &[f64] = &[
 /// Quantile Mechanics II: Changes of Variables in Monte Carlo methods and GPU-Optimized Normal Quantiles
 /// William T. Shaw, Thomas Luu, Nick Brickman
 pub fn norminv<F: Float + SampleUniform>(x: F) -> F
-    where f64: AsPrimitive<F>
+where
+    f64: AsPrimitive<F>,
 {
-    let u = if x > (0.5f64).as_() {
-        F::ONE - x
-    } else {
-        x
-    };
+    let u = if x > (0.5f64).as_() { F::ONE - x } else { x };
     let v = -F::ln((2.0f64).as_() * u);
     let p = polynomial(v, SHAW_P);
     let q = polynomial(v, SHAW_Q);
@@ -124,7 +120,8 @@ pub fn norminv<F: Float + SampleUniform>(x: F) -> F
 struct StandardNormal;
 
 impl<F: Float + SampleUniform> Distribution<F> for StandardNormal
-    where f64: AsPrimitive<F>
+where
+    f64: AsPrimitive<F>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> F {
         norminv(rng.gen_range(F::ZERO, F::ONE))
@@ -135,7 +132,8 @@ impl<F: Float + SampleUniform> Distribution<F> for StandardNormal
 pub struct UnitCircle;
 
 impl<F: Float + SampleUniform> Distribution<[F; 2]> for UnitCircle
-    where f64: AsPrimitive<F>
+where
+    f64: AsPrimitive<F>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> [F; 2] {
         let u: F = StandardNormal.sample(rng);
@@ -148,9 +146,9 @@ impl<F: Float + SampleUniform> Distribution<[F; 2]> for UnitCircle
 #[derive(Clone, Copy, Debug)]
 pub struct UnitDisc;
 
-
 impl<F: Float + SampleUniform> Distribution<[F; 2]> for UnitDisc
-    where f64: AsPrimitive<F>
+where
+    f64: AsPrimitive<F>,
 {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> [F; 2] {
         let [x, y] = UnitCircle.sample(rng);

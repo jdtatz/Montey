@@ -1,13 +1,13 @@
-use rand::{Rng, prelude::Distribution};
-use crate::vector::{Vector, UnitVector};
-use crate::random::{PRng, BoolExt, UnitCircle};
+use crate::random::{BoolExt, PRng, UnitCircle};
 use crate::sources::Source;
-use num::complex::Complex32;
+use crate::vector::{UnitVector, Vector};
 use core::slice::SliceIndex;
-#[cfg(target_arch="nvptx64")]
-use nvptx_sys::Float;
-#[cfg(not(target_arch="nvptx64"))]
+use num::complex::Complex32;
+#[cfg(not(target_arch = "nvptx64"))]
 use num::traits::Float;
+#[cfg(target_arch = "nvptx64")]
+use nvptx_sys::Float;
+use rand::{prelude::Distribution, Rng};
 
 fn sqr(x: f32) -> f32 {
     x * x
@@ -27,10 +27,27 @@ enum Boundary {
     Z,
 }
 
-fn intersection(prev: Option<Boundary>, voxel_pos: Vector<f32>, v: UnitVector<f32>, voxel_dim: Vector<f32>) -> (f32, Option<Boundary>) {
-    let dx = matches!(prev, Some(Boundary::X)).if_else(voxel_dim.x, v.x.is_sign_positive().if_else(voxel_dim.x - voxel_pos.x, voxel_pos.x));
-    let dy = matches!(prev, Some(Boundary::Y)).if_else(voxel_dim.y, v.y.is_sign_positive().if_else(voxel_dim.y - voxel_pos.y, voxel_pos.y));
-    let dz = matches!(prev, Some(Boundary::Z)).if_else(voxel_dim.z, v.z.is_sign_positive().if_else(voxel_dim.z - voxel_pos.z, voxel_pos.z));
+fn intersection(
+    prev: Option<Boundary>,
+    voxel_pos: Vector<f32>,
+    v: UnitVector<f32>,
+    voxel_dim: Vector<f32>,
+) -> (f32, Option<Boundary>) {
+    let dx = matches!(prev, Some(Boundary::X)).if_else(
+        voxel_dim.x,
+        v.x.is_sign_positive()
+            .if_else(voxel_dim.x - voxel_pos.x, voxel_pos.x),
+    );
+    let dy = matches!(prev, Some(Boundary::Y)).if_else(
+        voxel_dim.y,
+        v.y.is_sign_positive()
+            .if_else(voxel_dim.y - voxel_pos.y, voxel_pos.y),
+    );
+    let dz = matches!(prev, Some(Boundary::Z)).if_else(
+        voxel_dim.z,
+        v.z.is_sign_positive()
+            .if_else(voxel_dim.z - voxel_pos.z, voxel_pos.z),
+    );
 
     let hx = BoolExt::then(v.x != 0f32, || (dx / v.x).abs());
     let hy = BoolExt::then(v.y != 0f32, || (dy / v.y).abs());
@@ -45,7 +62,7 @@ fn intersection(prev: Option<Boundary>, voxel_pos: Vector<f32>, v: UnitVector<f3
         (_, Some(y), None) => (y, Some(Boundary::Y)),
         (_, _, Some(z)) => (z, Some(Boundary::Z)),
         // TODO: choose a more correct way of handling odd starts
-        _ => (voxel_dim.x.min(voxel_dim.y).min(voxel_dim.z) * 0.5f32, None)
+        _ => (voxel_dim.x.min(voxel_dim.y).min(voxel_dim.z) * 0.5f32, None),
     }
 }
 
@@ -58,7 +75,12 @@ fn henyey_greenstein_phase(g: f32, rand: f32) -> f32 {
     }
 }
 
-fn index_step(idx: &mut Vector<u32>, v: UnitVector<f32>, media_dim: Vector<u32>, boundary: Option<Boundary>) -> bool {
+fn index_step(
+    idx: &mut Vector<u32>,
+    v: UnitVector<f32>,
+    media_dim: Vector<u32>,
+    boundary: Option<Boundary>,
+) -> bool {
     match boundary {
         Some(Boundary::X) if v.x.is_sign_positive() => {
             idx.x += 1;
@@ -96,9 +118,7 @@ fn index_step(idx: &mut Vector<u32>, v: UnitVector<f32>, media_dim: Vector<u32>,
                 true
             }
         }
-        _ => {
-            false
-        }
+        _ => false,
     }
 }
 
@@ -143,17 +163,17 @@ fn safe_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Output {
         v
     } else {
         let loc = core::panic::Location::caller();
-        #[cfg(target_arch="nvptx64")]
-            unsafe {
-                nvptx_sys::__assertfail(
-                    b"safe_index out of bounds\0".as_ptr(),
-                    loc.file().as_ptr(),
-                    loc.line(),
-                    b"\0".as_ptr(),
-                    1
-                );
-            }
-        #[cfg(not(target_arch="nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
+        unsafe {
+            nvptx_sys::__assertfail(
+                b"safe_index out of bounds\0".as_ptr(),
+                loc.file().as_ptr(),
+                loc.line(),
+                b"\0".as_ptr(),
+                1,
+            );
+        }
+        #[cfg(not(target_arch = "nvptx64"))]
         unreachable!("safe_index out of bounds")
     }
 }
@@ -164,21 +184,20 @@ fn safe_index_mut<T, I: SliceIndex<[T]>>(slice: &mut [T], index: I) -> &mut I::O
         v
     } else {
         let loc = core::panic::Location::caller();
-        #[cfg(target_arch="nvptx64")]
-            unsafe {
-                nvptx_sys::__assertfail(
-                    b"safe_index_mut out of bounds\0".as_ptr(),
-                    loc.file().as_ptr(),
-                    loc.line(),
-                    b"\0".as_ptr(),
-                    1
-                );
-            }
-        #[cfg(not(target_arch="nvptx64"))]
+        #[cfg(target_arch = "nvptx64")]
+        unsafe {
+            nvptx_sys::__assertfail(
+                b"safe_index_mut out of bounds\0".as_ptr(),
+                loc.file().as_ptr(),
+                loc.line(),
+                b"\0".as_ptr(),
+                1,
+            );
+        }
+        #[cfg(not(target_arch = "nvptx64"))]
         unreachable!("safe_index_mut out of bounds")
     }
 }
-
 
 pub fn monte_carlo<S: Source + ?Sized>(
     spec: &MonteCarloSpecification,
@@ -240,7 +259,10 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 if outofbounds {
                     break 'photon;
                 }
-                let prev_media_id = core::mem::replace(&mut media_id, *safe_index(media, index_3d(idx, media_dim) as usize));
+                let prev_media_id = core::mem::replace(
+                    &mut media_id,
+                    *safe_index(media, index_3d(idx, media_dim) as usize),
+                );
                 if media_id == 0 && prev_media_id != 0 {
                     break 'photon;
                 }
@@ -262,19 +284,34 @@ pub fn monte_carlo<S: Source + ?Sized>(
             *safe_index_mut(partial_path, (media_id - 1) as usize) += s;
             // absorb
             let delta_weight = weight * state.mua / mu_t;
-            #[cfg(target_arch="nvptx64")]
-                unsafe {
-                    let ptr = fluence.as_mut_ptr().add(index_4d([idx.x, idx.y, idx.z, (ntof - 1).min((t / spec.dt).floor() as u32)], fluence_dim) as usize);
-                    nvptx_sys::atomic_load_add_f32(
-                        ptr,
-                        delta_weight
-                    );
-                }
-            #[cfg(not(target_arch="nvptx64"))]
-                {
-                    *safe_index_mut(fluence, index_4d([idx.x, idx.y, idx.z, (ntof - 1).min((t / spec.dt).floor() as u32)], fluence_dim) as usize) += delta_weight;
-                }
-
+            #[cfg(target_arch = "nvptx64")]
+            unsafe {
+                let ptr = fluence.as_mut_ptr().add(index_4d(
+                    [
+                        idx.x,
+                        idx.y,
+                        idx.z,
+                        (ntof - 1).min((t / spec.dt).floor() as u32),
+                    ],
+                    fluence_dim,
+                ) as usize);
+                nvptx_sys::atomic_load_add_f32(ptr, delta_weight);
+            }
+            #[cfg(not(target_arch = "nvptx64"))]
+            {
+                *safe_index_mut(
+                    fluence,
+                    index_4d(
+                        [
+                            idx.x,
+                            idx.y,
+                            idx.z,
+                            (ntof - 1).min((t / spec.dt).floor() as u32),
+                        ],
+                        fluence_dim,
+                    ) as usize,
+                ) += delta_weight;
+            }
 
             weight -= delta_weight;
             let rand: f32 = rng.gen();
@@ -290,7 +327,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
                     z: -denom * st * cp + v.z * ct,
                 });
             } else {
-                v = UnitVector(Vector{
+                v = UnitVector(Vector {
                     x: st * cp,
                     y: st * sp * (1f32).copysign(v.z),
                     z: ct * (1f32).copysign(v.z),
@@ -328,7 +365,11 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 *safe_index_mut(phi_td, time_id + ntof * i) += phi;
                 *safe_index_mut(phi_fd, i) += complex_exp(ln_phi_fd);
                 *safe_index_mut(photon_counter, time_id + ntof * i) += 1;
-                for (j, (pp, state)) in partial_path.iter().zip(safe_index(states, 1..).iter()).enumerate() {
+                for (j, (pp, state)) in partial_path
+                    .iter()
+                    .zip(safe_index(states, 1..).iter())
+                    .enumerate()
+                {
                     let opl_j = pp * state.n;
                     let dist = phi * opl_j / opl;
                     *safe_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += dist;

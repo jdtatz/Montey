@@ -1,9 +1,8 @@
-#[cfg(target_arch="nvptx64")]
-use nvptx_sys::Float;
-#[cfg(not(target_arch="nvptx64"))]
-use num::traits::Float;
 use derive_more::*;
-
+#[cfg(not(target_arch = "nvptx64"))]
+use num::traits::Float;
+#[cfg(target_arch = "nvptx64")]
+use nvptx_sys::Float;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div)]
@@ -15,11 +14,7 @@ pub struct Vector<T> {
 
 impl<T> Vector<T> {
     pub fn new(x: T, y: T, z: T) -> Self {
-        Self {
-            x,
-            y,
-            z,
-        }
+        Self { x, y, z }
     }
 }
 
