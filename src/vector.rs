@@ -1,4 +1,3 @@
-use derive_more::*;
 #[cfg(not(target_arch = "nvptx64"))]
 use num::traits::Float;
 #[cfg(target_arch = "nvptx64")]

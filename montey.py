@@ -91,7 +91,6 @@ photon_counter = np.zeros((nthread, ndet, ntof), np.uint64)
 dev = drv.Device(0)
 print(dev.name())
 ctxt: drv.Context = dev.make_context()
-ctxt.push()
 
 args = [
     gpuarray.to_gpu(spec.view(np.uint32)),
@@ -142,6 +141,7 @@ dt *= 1000
 print(dt)
 print(pcount)
 print(pcount / dt)
+ctxt.pop()
 
 sliced = fluence[:, :, 100]
 _, _, nt = sliced.shape

@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(abi_ptx)]
+#![allow(clippy::many_single_char_names, clippy::too_many_arguments)]
+#[macro_use]
 extern crate derive_more;
 #[cfg(test)]
 #[macro_use]

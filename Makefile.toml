@@ -6,6 +6,15 @@ dependencies = []
 command = "cargo"
 args = ["fmt"]
 
+[tasks.clippy]
+dependencies = []
+command = "cargo"
+args = [
+    "clippy",
+    "--target=nvptx64-nvidia-cuda.json",
+    "-Z", "build-std=core,alloc",
+]
+
 [tasks.build-kernel]
 toolchain = "nightly"
 command = "cargo"
