@@ -1,0 +1,57 @@
+[config]
+default_to_workspace = false
+
+[tasks.format]
+dependencies = []
+command = "cargo"
+args = ["fmt"]
+
+[tasks.build-kernel]
+toolchain = "nightly"
+command = "cargo"
+args = [
+    "rustc",
+    "--release",
+    "--bin=kernel",
+    "--target=nvptx64-nvidia-cuda.json",
+    "-Z", "build-std=core,alloc",
+    "-Z", "features=all",
+    "--",
+    "-Csave-temps",
+    "--emit=asm=src/kernel.ptx,llvm-ir=kernel.ll",
+    "-Cdebuginfo=0",
+    "-Copt-level=3",
+    "-Ccodegen-units=1",
+    "-Clto",
+    "-Cembed-bitcode=yes",
+    "-Ctarget-cpu=sm_32",
+    "-Ctarget-feature=+ptx60",
+    "-Clinker=echo",
+    "-Z", "no-link",
+    "-Z", "mir-opt-level=3",
+]
+
+[tasks.fix-kernel]
+command = "python3"
+args = [ "fix_ptx.py" ]
+
+[tasks.kernel]
+dependencies = [ "build-kernel", "fix-kernel" ]
+
+[tasks.verify-kernel]
+dependencies = ["kernel"]
+command = "ptxas"
+args = ["-v", "-arch=sm_52", "src/kernel.ptx"]
+
+[tasks.flow-build]
+dependencies = [
+    "format",
+    "kernel",
+]
+
+[tasks.flow-develop]
+dependencies = [
+    "format",
+    "kernel",
+    "verify-kernel",
+]
