@@ -2,7 +2,6 @@ use crate::random::{BoolExt, PRng, UnitCircle};
 use crate::sources::Source;
 use crate::vector::{UnitVector, Vector};
 use core::slice::SliceIndex;
-use num::complex::Complex32;
 #[cfg(not(target_arch = "nvptx64"))]
 use num::traits::Float;
 #[cfg(target_arch = "nvptx64")]
@@ -11,12 +10,6 @@ use rand::{prelude::Distribution, Rng};
 
 fn sqr(x: f32) -> f32 {
     x * x
-}
-
-fn complex_exp(c: Complex32) -> Complex32 {
-    let r = c.re.exp();
-    let (s, c) = c.im.sin_cos();
-    Complex32::new(r * c, r * s)
 }
 
 #[repr(u8)]
@@ -209,7 +202,6 @@ pub fn monte_carlo<S: Source + ?Sized>(
     detectors: &[Detector],
     fluence: &mut [f32],
     phi_td: &mut [f32],
-    phi_fd: &mut [Complex32],
     phi_phase: &mut [f32],
     phi_dist: &mut [f32],
     photon_counter: &mut [u64],
@@ -361,12 +353,10 @@ pub fn monte_carlo<S: Source + ?Sized>(
         'detphoton: for (i, det) in detectors.iter().enumerate() {
             let sqr_dist = (det.position - p).norm_sqr();
             if sqr_dist < sqr(det.radius) {
-                let ln_phi_fd = Complex32::new(ln_phi, -opl * omega_wavelength);
                 let ntof = ntof as usize;
                 let time_id = (ntof - 1).min((t / spec.dt).floor() as usize);
                 let phi = ln_phi.exp();
                 *safe_index_mut(phi_td, time_id + ntof * i) += phi;
-                *safe_index_mut(phi_fd, i) += complex_exp(ln_phi_fd);
                 *safe_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
                 *safe_index_mut(photon_counter, time_id + ntof * i) += 1;
                 for (j, (pp, state)) in partial_path

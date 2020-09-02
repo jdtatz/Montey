@@ -117,7 +117,6 @@ class Pencil(Source):
 class MonteCarloResult:
     fluence: np.float32[:, :, :, ::1]
     phi_td: np.float64[:, ::1]
-    phi_fd: np.complex128[::1]
     phi_phase: np.float64[::1]
     phi_dist: np.float64[:, :, ::1]
     photon_counter: np.uint64[:, ::1]
@@ -140,7 +139,6 @@ def monte_carlo(spec: Specification, source: Source, states: Sequence[State], de
     nmedia = len(states) - 1
     fluence = np.zeros((*media.shape, ntof), np.float32)
     phi_td = np.zeros((nthread, ndet, ntof), np.float32)
-    phi_fd = np.zeros((nthread, ndet), np.complex64)
     phi_phase = np.zeros((nthread, ndet), np.float32)
     phi_dist = np.zeros((nthread, ndet, ntof, nmedia), np.float32)
     photon_counter = np.zeros((nthread, ndet, ntof), np.uint64)
@@ -177,7 +175,6 @@ def monte_carlo(spec: Specification, source: Source, states: Sequence[State], de
         gpuarray.to_gpu(detectors.view(np.uint32)),
         drv.InOut(fluence),
         drv.InOut(phi_td),
-        drv.InOut(phi_fd),
         drv.InOut(phi_phase),
         drv.InOut(phi_dist),
         drv.InOut(photon_counter),
@@ -197,7 +194,6 @@ def monte_carlo(spec: Specification, source: Source, states: Sequence[State], de
     return MonteCarloResult(
         fluence=fluence,
         phi_td=phi_td.sum(axis=0, dtype=np.float64) / pcount,
-        phi_fd=phi_fd.sum(axis=0, dtype=np.complex128) / pcount,
         phi_phase=phi_phase.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64),
         phi_dist=phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=0, dtype=np.float64)[:, :, None],
         photon_counter=photon_counter.sum(axis=0, dtype=np.uint64),
@@ -245,6 +241,7 @@ fig.tight_layout()
 fig.savefig("phitd.png", dpi=300)
 
 # Plot Phi Distr
+print('phi_dist', res.phi_dist.sum(axis=(1, 2)))
 fig, axs = plt.subplots(2, res.phi_dist.shape[0])
 for ((ax1, ax2), distr) in zip(axs.T, res.phi_dist):
     ax1.matshow(distr.T, extent=[0, 8, 0, 1])
@@ -253,10 +250,7 @@ fig.tight_layout()
 fig.savefig("phidistr.png", dpi=300)
 
 # Plot Phase
-print(res.phi_fd)
-print(res.phi_phase)
 fig, ax = plt.subplots(1)
-ax.plot(np.angle(res.phi_fd, deg=True), '*--')
 ax.plot(np.rad2deg(res.phi_phase), '*--')
 fig.tight_layout()
 fig.savefig("phase.png", dpi=300)
@@ -264,12 +258,9 @@ fig.savefig("phase.png", dpi=300)
 
 # Plot Fd
 fd = np.exp(1j * res.phi_phase) * res.phi_td.sum(axis=1)
-print(res.phi_fd)
 print(res.phi_phase)
 fig, (ax1, ax2) = plt.subplots(2)
-ax1.plot(res.phi_fd.real)
 ax1.plot(fd.real)
-ax2.plot(res.phi_fd.imag)
 ax2.plot(fd.imag)
 fig.tight_layout()
 fig.savefig("fd.png", dpi=300)
