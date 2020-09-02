@@ -11,6 +11,9 @@ pub trait Float: 'static + num::traits::Float {
     const ZERO: Self;
     const ONE: Self;
     fn copysign(self, sign: Self) -> Self;
+    fn rsqrt(self) -> Self {
+        Self::ONE / self.sqrt()
+    }
 }
 
 #[cfg(not(target_arch = "nvptx64"))]
@@ -138,8 +141,8 @@ where
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> [F; 2] {
         let u: F = StandardNormal.sample(rng);
         let v: F = StandardNormal.sample(rng);
-        let d = F::sqrt(u * u + v * v);
-        [u / d, v / d]
+        let d = F::rsqrt(u * u + v * v);
+        [u * d, v * d]
     }
 }
 

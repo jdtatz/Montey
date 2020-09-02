@@ -125,7 +125,7 @@ fn index_step(
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct MonteCarloSpecification {
-    pub nphoton: u64,
+    pub nphoton: u32,
     pub voxel_dim: Vector<f32>,
     pub lifetime_max: f32,
     pub dt: f32,
@@ -223,6 +223,9 @@ pub fn monte_carlo<S: Source + ?Sized>(
         y: spec.voxel_dim.y * (media_dim.y as f32),
         z: spec.voxel_dim.z * (media_dim.z as f32),
     };
+    const PI_2: f32 = 2f32 * core::f32::consts::PI;
+    // TODO better name
+    let omega_wavelength = PI_2 * spec.freq / spec.lightspeed;
 
     for _ in 0..spec.nphoton {
         let (mut p, mut v) = src.launch(&mut rng);
@@ -241,6 +244,8 @@ pub fn monte_carlo<S: Source + ?Sized>(
         for pp in partial_path.iter_mut() {
             *pp = 0f32;
         }
+        let mut ln_phi = 0f32;
+        let mut opl = 0f32;
 
         'photon: loop {
             let rand: f32 = rng.gen();
@@ -254,6 +259,8 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 s -= dist;
                 if media_id > 0 {
                     *safe_index_mut(partial_path, (media_id - 1) as usize) += dist;
+                    ln_phi -= dist * state.mua;
+                    opl += dist * state.n;
                 }
                 let outofbounds = index_step(&mut idx, v, media_dim, boundary);
                 if outofbounds {
@@ -282,6 +289,8 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 break 'photon;
             }
             *safe_index_mut(partial_path, (media_id - 1) as usize) += s;
+            ln_phi -= s * state.mua;
+            opl += s * state.n;
             // absorb
             let delta_weight = weight * state.mua / mu_t;
             #[cfg(target_arch = "nvptx64")]
@@ -320,10 +329,12 @@ pub fn monte_carlo<S: Source + ?Sized>(
             let [cp, sp]: [f32; 2] = UnitCircle.sample(&mut rng);
             const EPS_N_1: f32 = 1f32 - 1e-6f32;
             if v.z.abs() < EPS_N_1 {
-                let denom = (1f32 - sqr(v.z)).sqrt();
+                let d = 1f32 - sqr(v.z);
+                let denom = d.sqrt();
+                let rdenom = d.rsqrt();
                 v = UnitVector(Vector {
-                    x: st * (v.x * v.z * cp - v.y * sp) / denom + v.x * ct,
-                    y: st * (v.y * v.z * cp + v.x * sp) / denom + v.y * ct,
+                    x: st * (v.x * v.z * cp - v.y * sp) * rdenom + v.x * ct,
+                    y: st * (v.y * v.z * cp + v.x * sp) * rdenom + v.y * ct,
                     z: -denom * st * cp + v.z * ct,
                 });
             } else {
@@ -349,16 +360,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
         'detphoton: for (i, det) in detectors.iter().enumerate() {
             let sqr_dist = (det.position - p).norm_sqr();
             if sqr_dist < sqr(det.radius) {
-                let mut ln_phi = 0f32;
-                let mut ln_phi_fd = Complex32::new(0f32, 0f32);
-                let mut opl = 0f32;
-                const PI_2: f32 = 2f32 * core::f32::consts::PI;
-                let temp1 = Complex32::new(0f32, PI_2 * spec.freq / spec.lightspeed);
-                for (pp, state) in partial_path.iter().zip(safe_index(states, 1..).iter()) {
-                    ln_phi += pp * (-state.mua);
-                    ln_phi_fd += pp * (-state.mua - temp1 * state.n);
-                    opl += pp * state.n;
-                }
+                let ln_phi_fd = Complex32::new(ln_phi, -opl * omega_wavelength);
                 let ntof = ntof as usize;
                 let time_id = (ntof - 1).min((t / spec.dt).floor() as usize);
                 let phi = ln_phi.exp();
@@ -371,8 +373,8 @@ pub fn monte_carlo<S: Source + ?Sized>(
                     .enumerate()
                 {
                     let opl_j = pp * state.n;
-                    let dist = phi * opl_j / opl;
-                    *safe_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += dist;
+                    let distr = phi * opl_j / opl;
+                    *safe_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += distr;
                 }
                 break 'detphoton;
             }
