@@ -36,6 +36,7 @@ unsafe fn kernel<S: Source + ?Sized>(
     fluence: *mut f32,
     phi_td: *mut f32,
     phi_fd: *mut Complex32,
+    phi_phase: *mut f32,
     phi_dist: *mut f32,
     photon_counter: *mut u64,
 ) {
@@ -52,6 +53,7 @@ unsafe fn kernel<S: Source + ?Sized>(
     let len = (ndet * ntof) as usize;
     let phi_td = core::slice::from_raw_parts_mut(phi_td.add((gid * len) as usize), len as usize);
     let phi_fd = core::slice::from_raw_parts_mut(phi_fd.add(gid * ndet as usize), ndet as usize);
+    let phi_phase = core::slice::from_raw_parts_mut(phi_phase.add(gid * ndet as usize), ndet as usize);
     let len = (ndet * ntof * nmedia) as usize;
     let phi_dist =
         core::slice::from_raw_parts_mut(phi_dist.add((gid * len) as usize), len as usize);
@@ -83,6 +85,7 @@ unsafe fn kernel<S: Source + ?Sized>(
         fluence,
         phi_td,
         phi_fd,
+        phi_phase,
         phi_dist,
         photon_counter,
         partial_path,
@@ -107,6 +110,7 @@ macro_rules! create_kernel {
             fluence: *mut f32,
             phi_td: *mut f32,
             phi_fd: *mut Complex32,
+            phi_phase: *mut f32,
             phi_dist: *mut f32,
             photon_counter: *mut u64,
         ) {
@@ -125,6 +129,7 @@ macro_rules! create_kernel {
                 fluence,
                 phi_td,
                 phi_fd,
+                phi_phase,
                 phi_dist,
                 photon_counter,
             )
@@ -147,6 +152,7 @@ macro_rules! create_kernel {
             fluence: *mut f32,
             phi_td: *mut f32,
             phi_fd: *mut Complex32,
+            phi_phase: *mut f32,
             phi_dist: *mut f32,
             photon_counter: *mut u64,
         ) {
@@ -165,6 +171,7 @@ macro_rules! create_kernel {
                 fluence,
                 phi_td,
                 phi_fd,
+                phi_phase,
                 phi_dist,
                 photon_counter,
             )

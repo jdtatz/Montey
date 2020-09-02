@@ -210,6 +210,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
     fluence: &mut [f32],
     phi_td: &mut [f32],
     phi_fd: &mut [Complex32],
+    phi_phase: &mut [f32],
     phi_dist: &mut [f32],
     photon_counter: &mut [u64],
     partial_path: &mut [f32],
@@ -366,6 +367,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 let phi = ln_phi.exp();
                 *safe_index_mut(phi_td, time_id + ntof * i) += phi;
                 *safe_index_mut(phi_fd, i) += complex_exp(ln_phi_fd);
+                *safe_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
                 *safe_index_mut(photon_counter, time_id + ntof * i) += 1;
                 for (j, (pp, state)) in partial_path
                     .iter()
