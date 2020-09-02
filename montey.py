@@ -195,7 +195,7 @@ def monte_carlo(spec: Specification, source: Source, states: Sequence[State], de
         fluence=fluence,
         phi_td=phi_td.sum(axis=0, dtype=np.float64) / pcount,
         phi_phase=phi_phase.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64),
-        phi_dist=phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=0, dtype=np.float64)[:, :, None],
+        phi_dist=phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
         photon_counter=photon_counter.sum(axis=0, dtype=np.uint64),
     )
 
@@ -234,6 +234,8 @@ fig.tight_layout()
 fig.savefig("photons.png", dpi=300)
 
 # Plot Phi Time Domain
+print('phi_td', np.nansum(res.phi_td, axis=1))
+print('phi_td', np.nansum(res.phi_td))
 fig, axs = plt.subplots(1, res.phi_td.shape[0], sharey='all')
 for (ax, td) in zip(axs, res.phi_td):
     ax.semilogy(td, '*--')
@@ -241,7 +243,7 @@ fig.tight_layout()
 fig.savefig("phitd.png", dpi=300)
 
 # Plot Phi Distr
-print('phi_dist', res.phi_dist.sum(axis=(1, 2)))
+print('phi_dist', np.nansum(res.phi_dist, axis=(1, 2)))
 fig, axs = plt.subplots(2, res.phi_dist.shape[0])
 for ((ax1, ax2), distr) in zip(axs.T, res.phi_dist):
     ax1.matshow(distr.T, extent=[0, 8, 0, 1])
