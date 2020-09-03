@@ -2,14 +2,15 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import numpy as np
+import xarray as xr
+import cupy as cu
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 from matplotlib.animation import FuncAnimation
-import pycuda.driver as drv
-import pycuda.gpuarray as gpuarray
-from numba.cuda.random import xoroshiro128p_dtype, init_xoroshiro128p_states_cpu
-from typing import Tuple, Sequence, TypeVar, Generic
+from numba.cuda.random import create_xoroshiro128p_states
+from typing import Tuple, Sequence, TypeVar, Generic, Optional
 from numbers import Real
+from pint import UnitRegistry, get_application_registry
 
 T = TypeVar("T")
 
@@ -122,81 +123,80 @@ class MonteCarloResult:
     photon_counter: np.uint64[:, ::1]
 
 
+@cu.memoize(for_each_device=True)
+def load_module():
+    return cu.RawModule(path="src/kernel.ptx")
+
+
+@cu.memoize(for_each_device=True)
+def load_kernel(kernel_name: str):
+    return load_module().get_function(kernel_name)
+
+
 def monte_carlo(spec: Specification, source: Source, states: Sequence[State], detectors: Sequence[Detector],
                 media: np.uint8[:, :, ::1], seed: int = 12345, nwarp: int = 4, nblock: int = 512,
-                gpu_id: int = 0) -> MonteCarloResult:
+                ureg: Optional[UnitRegistry] = None) -> xr.Dataset:
+    if ureg is None:
+        ureg = get_application_registry()
     nthread = nblock * nwarp * 32
     pcount = nthread * spec.nphoton
-    print(nthread, pcount)
 
-    rng_states = np.empty(shape=nthread, dtype=xoroshiro128p_dtype)
-    init_xoroshiro128p_states_cpu(rng_states, seed, subsequence_start=0)
-    print(rng_states)
-    rng_states = rng_states.view(np.uint64)
+    rng_states = create_xoroshiro128p_states(nthread, seed)
 
     ndet = len(detectors)
     ntof = int(np.ceil(spec.lifetime_max / spec.dt))
     nmedia = len(states) - 1
-    fluence = np.zeros((*media.shape, ntof), np.float32)
-    phi_td = np.zeros((nthread, ndet, ntof), np.float32)
-    phi_phase = np.zeros((nthread, ndet), np.float32)
-    phi_dist = np.zeros((nthread, ndet, ntof, nmedia), np.float32)
-    photon_counter = np.zeros((nthread, ndet, ntof), np.uint64)
-
-    print(states)
-    print(detectors)
-
-    print(states[0].as_record(np.float32))
-    print(detectors[0].as_record(np.float32))
+    fluence = cu.zeros((*media.shape, ntof), np.float32)
+    phi_td = cu.zeros((nthread, ndet, ntof), np.float32)
+    phi_phase = cu.zeros((nthread, ndet), np.float32)
+    phi_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
+    photon_counter = cu.zeros((nthread, ndet, ntof), np.uint64)
 
     states = np.stack([s.as_record(np.float32) for s in states])
     detectors = np.stack([d.as_record(np.float32) for d in detectors])
 
-    print(states)
-    print(detectors)
-    print(spec.as_record(np.float32))
-    print(source.as_record(np.float32))
-
-    dev = drv.Device(gpu_id)
-    print(f"Using gpu: {dev.name()}")
-    ctxt: drv.Context = dev.make_context()
-
-    args = [
-        gpuarray.to_gpu(spec.as_record(np.float32).view(np.uint32)),
-        gpuarray.to_gpu(source.as_record(np.float32).view(np.uint32)),
+    args = (
+        cu.asarray(spec.as_record(np.float32).view(np.uint32)),
+        cu.asarray(source.as_record(np.float32).view(np.uint32)),
         np.uint32(nmedia),
-        gpuarray.to_gpu(states.view(np.uint32)),
+        cu.asarray(states.view(np.uint32)),
         np.uint32(media.shape[0]),
         np.uint32(media.shape[1]),
         np.uint32(media.shape[2]),
-        drv.In(media),
-        drv.In(rng_states),
+        cu.asarray(media),
+        cu.asarray(rng_states),
         np.uint32(ndet),
-        gpuarray.to_gpu(detectors.view(np.uint32)),
-        drv.InOut(fluence),
-        drv.InOut(phi_td),
-        drv.InOut(phi_phase),
-        drv.InOut(phi_dist),
-        drv.InOut(photon_counter),
-    ]
-    with open("src/kernel.ptx", "rb") as f:
-        module = drv.module_from_buffer(f.read())
-    kernel = module.get_function(source.kernel_name())
+        cu.asarray(detectors.view(np.uint32)),
+        fluence,
+        phi_td,
+        phi_phase,
+        phi_dist,
+        photon_counter,
+    )
 
-    smem = nwarp * 32 * nmedia * 4
-    dt = kernel(*args, block=(nwarp * 32, 1, 1), grid=(nblock, 1), shared=smem, time_kernel=True)
-    dt *= 1000
+    kernel = load_kernel(source.kernel_name())
+    start_event = cu.cuda.Event()
+    start_event.record()
+    kernel(args=args, block=(nwarp * 32, 1, 1), grid=(nblock, 1), shared_mem=nwarp * 32 * nmedia * 4)
+    end_event = cu.cuda.Event(block=True)
+    end_event.record()
+    end_event.synchronize()
+    dt = cu.cuda.get_elapsed_time(start_event, end_event)
     print(f"Time: {dt}ms")
     print(f"Photon count: {pcount}")
     print(f"Throughput: {pcount / dt} photons/ms")
 
-    ctxt.pop()
-    return MonteCarloResult(
-        fluence=fluence,
-        phi_td=phi_td.sum(axis=0, dtype=np.float64) / pcount,
-        phi_phase=phi_phase.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64),
-        phi_dist=phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
-        photon_counter=photon_counter.sum(axis=0, dtype=np.uint64),
+    return xr.Dataset(
+        {
+            "Photons": (["detector", "time"], photon_counter.sum(axis=0, dtype=np.uint64)),
+            "PhiTD": (["detector", "time"], phi_td.sum(axis=0, dtype=np.float64) / pcount, {"long_name": "Φ"}),
+            "PhiPhase": (["detector"], phi_phase.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64), {"units": ureg.rad, "long_name": "Φ Phase"}),
+            "PhiDist": (["detector", "time", "layer"], phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None], {"long_name": "Φ Distribution"}),
+            "Fluence": (["x", "y", "z", "time"], fluence),
+        },
+        coords={
+            "time": (["time"], (np.arange(ntof) + 0.5) * spec.dt, {"units": ureg.second}),
+        }
     )
 
 
@@ -225,27 +225,37 @@ res = monte_carlo(
     media=np.ones((200, 200, 200), np.uint8),
 )
 
+print(res)
+
+for k, v in res.data_vars.items():
+    v.data = cu.asnumpy(v.data)
+
+ndet = len(res.coords["detector"])
+ntof = len(res.coords["time"])
+
 # Plot Photon Counter
-fig, axs = plt.subplots(res.photon_counter.shape[0], 2)
-for ((ax1, ax2), ps) in zip(axs, res.photon_counter):
-    ax1.bar(np.arange(len(ps)), ps, log=True)
-    ax2.bar(np.arange(len(ps)), ps)
+print(res["Photons"])
+print(res["Photons"].sum(dim="time"))
+fig, axs = plt.subplots(ndet, 2)
+for ((ax1, ax2), ps) in zip(axs, res["Photons"]):
+    ax1.bar(np.arange(ntof), ps, log=True)
+    ax2.bar(np.arange(ntof), ps)
 fig.tight_layout()
 fig.savefig("photons.png", dpi=300)
 
 # Plot Phi Time Domain
-print('phi_td', np.nansum(res.phi_td, axis=1))
-print('phi_td', np.nansum(res.phi_td))
-fig, axs = plt.subplots(1, res.phi_td.shape[0], sharey='all')
-for (ax, td) in zip(axs, res.phi_td):
+print('phi_td', np.nansum(res["PhiTD"], axis=1))
+print('phi_td', np.nansum(res["PhiTD"]))
+fig, axs = plt.subplots(1, ndet, sharey='all')
+for (ax, td) in zip(axs, res["PhiTD"]):
     ax.semilogy(td, '*--')
 fig.tight_layout()
 fig.savefig("phitd.png", dpi=300)
 
 # Plot Phi Distr
-print('phi_dist', np.nansum(res.phi_dist, axis=(1, 2)))
-fig, axs = plt.subplots(2, res.phi_dist.shape[0])
-for ((ax1, ax2), distr) in zip(axs.T, res.phi_dist):
+print('phi_dist', np.nansum(res["PhiDist"], axis=(1, 2)))
+fig, axs = plt.subplots(2, ndet)
+for ((ax1, ax2), distr) in zip(axs.T, res["PhiDist"]):
     ax1.matshow(distr.T, extent=[0, 8, 0, 1])
     ax2.matshow(np.log(distr).T, extent=[0, 8, 0, 1])
 fig.tight_layout()
@@ -253,14 +263,14 @@ fig.savefig("phidistr.png", dpi=300)
 
 # Plot Phase
 fig, ax = plt.subplots(1)
-ax.plot(np.rad2deg(res.phi_phase), '*--')
+ax.plot(np.rad2deg(res["PhiPhase"]), '*--')
 fig.tight_layout()
 fig.savefig("phase.png", dpi=300)
 
 
 # Plot Fd
-fd = np.exp(1j * res.phi_phase) * res.phi_td.sum(axis=1)
-print(res.phi_phase)
+fd = np.exp(1j * res["PhiPhase"]) * res["PhiTD"].sum(axis=1)
+print(res["PhiPhase"])
 fig, (ax1, ax2) = plt.subplots(2)
 ax1.plot(fd.real)
 ax2.plot(fd.imag)
@@ -268,7 +278,7 @@ fig.tight_layout()
 fig.savefig("fd.png", dpi=300)
 
 # Plot Fluence
-sliced = res.fluence[:, :, 100]
+sliced = res["Fluence"].data[:, :, 100]
 _, _, nt = sliced.shape
 
 sliced = np.log(sliced)
@@ -276,8 +286,6 @@ sliced[~np.isfinite(sliced)] = np.nan
 norm = colors.Normalize(vmin=np.nanmin(sliced), vmax=np.nanmax(sliced))
 
 print(np.nanmin(sliced), np.nanmax(sliced))
-print(res.photon_counter)
-print(res.photon_counter.sum(axis=1))
 
 fig, ax = plt.subplots()
 
