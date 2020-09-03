@@ -1,7 +1,5 @@
 use crate::random::UnitDisc;
 use crate::{PRng, UnitVector, Vector};
-#[cfg(not(target_arch = "nvptx64"))]
-use num::traits::Float;
 #[cfg(target_arch = "nvptx64")]
 use nvptx_sys::Float;
 use rand::prelude::Distribution;
@@ -102,15 +100,15 @@ impl Source for DiskSource {
             });
             let x_vec = *z - *self.src_dir * self.src_dir.dot(*z);
             let y_vec = self.src_dir.cross(x_vec);
-            assert_ulps_eq!(x_vec.dot(*self.orthonormal_basis.0), 1.);
-            assert_ulps_eq!(y_vec.dot(*self.orthonormal_basis.1), 1.);
+            approx::assert_ulps_eq!(x_vec.dot(*self.orthonormal_basis[0]), 1.);
+            approx::assert_ulps_eq!(y_vec.dot(*self.orthonormal_basis[1]), 1.);
         }
         #[cfg(test)]
         {
             let [x_vec, y_vec] = self.orthonormal_basis;
-            assert_ulps_eq!(self.src_dir.dot(*x_vec), 0.);
-            assert_ulps_eq!(self.src_dir.dot(*y_vec), 0.);
-            assert_ulps_eq!(x_vec.dot(*y_vec), 0.);
+            approx::assert_ulps_eq!(self.src_dir.dot(*x_vec), 0.);
+            approx::assert_ulps_eq!(self.src_dir.dot(*y_vec), 0.);
+            approx::assert_ulps_eq!(x_vec.dot(*y_vec), 0.);
         }
         let [x_vec, y_vec] = self.orthonormal_basis;
         // Uses rejection method, might want to use Muller-Marsaglia with fast sin & cos

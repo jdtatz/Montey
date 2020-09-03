@@ -1,12 +1,9 @@
-#![no_std]
-#![no_main]
-#![feature(abi_ptx)]
+#![cfg_attr(target_arch = "nvptx64", no_std)]
+#![cfg_attr(target_arch = "nvptx64", no_main)]
+#![cfg_attr(target_arch = "nvptx64", feature(abi_ptx))]
 #![allow(clippy::many_single_char_names, clippy::too_many_arguments)]
 #[macro_use]
 extern crate derive_more;
-#[cfg(test)]
-#[macro_use]
-extern crate approx;
 // http://prng.di.unimi.it/
 
 mod random;
@@ -18,8 +15,10 @@ pub use crate::sources::{DiskSource, PencilSource, Source};
 mod monte_carlo;
 pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
 
+#[cfg(target_arch = "nvptx64")]
 use nvptx_sys::{blockDim, blockIdx, threadIdx, Float};
 
+#[cfg(target_arch = "nvptx64")]
 unsafe fn kernel<S: Source + ?Sized>(
     spec: &MonteCarloSpecification,
     src: &S,
@@ -69,8 +68,7 @@ unsafe fn kernel<S: Source + ?Sized>(
             1,
         );
     }
-    let partial_path =
-        core::slice::from_raw_parts_mut((dyn_mem as *mut f32).add(idx), nmedia as usize);
+    let shared = core::slice::from_raw_parts_mut((dyn_mem as *mut f32).add(idx), nmedia as usize);
 
     monte_carlo(
         spec,
@@ -85,12 +83,13 @@ unsafe fn kernel<S: Source + ?Sized>(
         phi_phase,
         phi_dist,
         photon_counter,
-        partial_path,
+        shared,
     )
 }
 
 macro_rules! create_kernel {
     ($kname:ident $karname:ident $src:ty) => {
+        #[cfg(target_arch = "nvptx64")]
         #[no_mangle]
         pub unsafe extern "ptx-kernel" fn $kname(
             spec: &MonteCarloSpecification,
@@ -130,6 +129,7 @@ macro_rules! create_kernel {
             )
         }
 
+        #[cfg(target_arch = "nvptx64")]
         #[no_mangle]
         pub unsafe extern "ptx-kernel" fn $karname(
             spec: &MonteCarloSpecification,
@@ -174,3 +174,6 @@ macro_rules! create_kernel {
 
 create_kernel!(pencil pencil_array PencilSource);
 create_kernel!(disk disk_array DiskSource);
+
+#[cfg(not(target_arch = "nvptx64"))]
+fn main() {}

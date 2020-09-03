@@ -1,5 +1,5 @@
 #![allow(clippy::many_single_char_names, clippy::unreadable_literal, clippy::excessive_precision)]
-use num::traits::AsPrimitive;
+use num_traits::AsPrimitive;
 #[cfg(target_arch = "nvptx64")]
 use nvptx_sys::Float;
 use rand::distributions::uniform::SampleUniform;
@@ -7,7 +7,7 @@ use rand::prelude::{Distribution, Rng};
 pub use rand_xoshiro::Xoroshiro128Plus as PRng;
 
 #[cfg(not(target_arch = "nvptx64"))]
-pub trait Float: 'static + num::traits::Float {
+pub trait Float: 'static + num_traits::Float {
     const ZERO: Self;
     const ONE: Self;
     fn copysign(self, sign: Self) -> Self;
@@ -23,6 +23,16 @@ impl Float for f32 {
 
     fn copysign(self, sign: Self) -> Self {
         libm::copysignf(self, sign)
+    }
+}
+
+#[cfg(not(target_arch = "nvptx64"))]
+impl Float for f64 {
+    const ZERO: Self = 0f64;
+    const ONE: Self = 1f64;
+
+    fn copysign(self, sign: Self) -> Self {
+        libm::copysign(self, sign)
     }
 }
 
@@ -170,20 +180,20 @@ mod test {
     fn test_shaw() {
         let n = Normal::new(0.0, 1.0).unwrap();
 
-        assert_almost_eq!(norminv(1e-100), n.inverse_cdf(1e-100), 2e-1);
-        assert_almost_eq!(norminv(1e-60), n.inverse_cdf(1e-60), 2e-2);
-        assert_almost_eq!(norminv(1e-30), n.inverse_cdf(1e-30), 1e-3);
-        assert_almost_eq!(norminv(1e-20), n.inverse_cdf(1e-20), 1e-5);
-        assert_almost_eq!(norminv(1e-15), n.inverse_cdf(1e-15), 5e-9);
-        assert_almost_eq!(norminv(1e-10), n.inverse_cdf(1e-10), 5e-9);
-        assert_almost_eq!(norminv(1e-5), n.inverse_cdf(1e-5), 2e-9);
-        assert_almost_eq!(norminv(0.1), n.inverse_cdf(0.1), 1e-9);
-        assert_almost_eq!(norminv(0.2), n.inverse_cdf(0.2), 1e-9);
-        assert_almost_eq!(norminv(0.5), n.inverse_cdf(0.5), 1e-9);
-        assert_almost_eq!(norminv(0.7), n.inverse_cdf(0.7), 1e-9);
-        assert_almost_eq!(norminv(0.9), n.inverse_cdf(0.9), 1e-9);
-        assert_almost_eq!(norminv(0.99), n.inverse_cdf(0.99), 2.04e-9);
-        assert_almost_eq!(norminv(0.999), n.inverse_cdf(0.999), 2.5e-9);
-        assert_almost_eq!(norminv(0.9999), n.inverse_cdf(0.9999), 4e-9);
+        assert_almost_eq!(norminv(1e-100), n.inverse_cdf(1e-100), max_relative = 2e-1);
+        assert_almost_eq!(norminv(1e-60), n.inverse_cdf(1e-60), max_relative = 2e-2);
+        assert_almost_eq!(norminv(1e-30), n.inverse_cdf(1e-30), max_relative = 1e-3);
+        assert_almost_eq!(norminv(1e-20), n.inverse_cdf(1e-20), max_relative = 1e-5);
+        assert_almost_eq!(norminv(1e-15), n.inverse_cdf(1e-15), max_relative = 5e-9);
+        assert_almost_eq!(norminv(1e-10), n.inverse_cdf(1e-10), max_relative = 5e-9);
+        assert_almost_eq!(norminv(1e-5), n.inverse_cdf(1e-5), max_relative = 2e-9);
+        assert_almost_eq!(norminv(0.1), n.inverse_cdf(0.1), max_relative = 1e-9);
+        assert_almost_eq!(norminv(0.2), n.inverse_cdf(0.2), max_relative = 1e-9);
+        assert_almost_eq!(norminv(0.5), n.inverse_cdf(0.5), max_relative = 1e-9);
+        assert_almost_eq!(norminv(0.7), n.inverse_cdf(0.7), max_relative = 1e-9);
+        assert_almost_eq!(norminv(0.9), n.inverse_cdf(0.9), max_relative = 1e-9);
+        assert_almost_eq!(norminv(0.99), n.inverse_cdf(0.99), max_relative = 2.04e-9);
+        assert_almost_eq!(norminv(0.999), n.inverse_cdf(0.999), max_relative = 2.5e-9);
+        assert_almost_eq!(norminv(0.9999), n.inverse_cdf(0.9999), max_relative = 4e-9);
     }
 }

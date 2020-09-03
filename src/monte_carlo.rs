@@ -1,9 +1,9 @@
+#[cfg(not(target_arch = "nvptx64"))]
+use crate::random::Float;
 use crate::random::{BoolExt, PRng, UnitCircle};
 use crate::sources::Source;
 use crate::vector::{UnitVector, Vector};
 use core::slice::SliceIndex;
-#[cfg(not(target_arch = "nvptx64"))]
-use num::traits::Float;
 #[cfg(target_arch = "nvptx64")]
 use nvptx_sys::Float;
 use rand::{prelude::Distribution, Rng};
@@ -155,9 +155,9 @@ fn safe_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Output {
     if let Some(v) = slice.get(index) {
         v
     } else {
-        let loc = core::panic::Location::caller();
         #[cfg(target_arch = "nvptx64")]
         unsafe {
+            let loc = core::panic::Location::caller();
             nvptx_sys::__assertfail(
                 b"safe_index out of bounds\0".as_ptr(),
                 loc.file().as_ptr(),
@@ -176,9 +176,9 @@ fn safe_index_mut<T, I: SliceIndex<[T]>>(slice: &mut [T], index: I) -> &mut I::O
     if let Some(v) = slice.get_mut(index) {
         v
     } else {
-        let loc = core::panic::Location::caller();
         #[cfg(target_arch = "nvptx64")]
         unsafe {
+            let loc = core::panic::Location::caller();
             nvptx_sys::__assertfail(
                 b"safe_index_mut out of bounds\0".as_ptr(),
                 loc.file().as_ptr(),
@@ -205,7 +205,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
     phi_phase: &mut [f32],
     phi_dist: &mut [f32],
     photon_counter: &mut [u64],
-    partial_path: &mut [f32],
+    layer_opl: &mut [f32],
 ) {
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
     // let ndet = detectors.len();
@@ -234,8 +234,8 @@ pub fn monte_carlo<S: Source + ?Sized>(
         let mut t = 0f32;
         let mut media_id = *safe_index(media, index_3d(idx, media_dim) as usize);
         let mut state = safe_index(states, media_id as usize);
-        for pp in partial_path.iter_mut() {
-            *pp = 0f32;
+        for opl_j in layer_opl.iter_mut() {
+            *opl_j = 0f32;
         }
         let mut ln_phi = 0f32;
         let mut opl = 0f32;
@@ -247,11 +247,11 @@ pub fn monte_carlo<S: Source + ?Sized>(
             let voxel_pos = p - spec.voxel_dim.hammard_product(idx.into());
             let (mut dist, mut boundary) = intersection(None, voxel_pos, v, spec.voxel_dim);
             while s > dist {
-                p = v.mul_add(dist, p);
+                p = (*v).mul_add(dist, p);
                 t += dist * state.n / spec.lightspeed;
                 s -= dist;
                 if media_id > 0 {
-                    *safe_index_mut(partial_path, (media_id - 1) as usize) += dist;
+                    *safe_index_mut(layer_opl, (media_id - 1) as usize) += dist * state.n;
                     ln_phi -= dist * state.mua;
                     opl += dist * state.n;
                 }
@@ -276,12 +276,12 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 dist = r.0;
                 boundary = r.1;
             }
-            p = v.mul_add(s, p);
+            p = (*v).mul_add(s, p);
             t += s * state.n / spec.lightspeed;
             if media_id == 0 || t >= spec.lifetime_max {
                 break 'photon;
             }
-            *safe_index_mut(partial_path, (media_id - 1) as usize) += s;
+            *safe_index_mut(layer_opl, (media_id - 1) as usize) += s * state.n;
             ln_phi -= s * state.mua;
             opl += s * state.n;
             // absorb
@@ -359,12 +359,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 *safe_index_mut(phi_td, time_id + ntof * i) += phi;
                 *safe_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
                 *safe_index_mut(photon_counter, time_id + ntof * i) += 1;
-                for (j, (pp, state)) in partial_path
-                    .iter()
-                    .zip(safe_index(states, 1..).iter())
-                    .enumerate()
-                {
-                    let opl_j = pp * state.n;
+                for (j, opl_j) in layer_opl.iter().enumerate() {
                     let distr = phi * opl_j / opl;
                     *safe_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += distr;
                 }
