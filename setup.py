@@ -2,14 +2,17 @@ from setuptools import setup
 
 setup(
     name="montey",
-    version="0.1.0",
+    version="0.0.1",
+    author="Julia Tatz",
+    author_email="tatz.j@northeastern.edu",
+    url="https://github.com/jdtatz/Montey/",
     packages=["montey"],
     install_requires=[
-        "cupy",
-        "numpy",
-        "numba",
-        "xarray",
-        "pint",
+        "cupy~=7.8",
+        "numpy~=1.19",
+        "numba~=0.50",
+        "xarray~=0.16",
+        "pint~=0.15",
     ],
     python_requires='~=3.7',
     package_data={"montey": ["kernel.ptx"]},
