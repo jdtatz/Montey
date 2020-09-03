@@ -26,16 +26,21 @@ impl<S: Source> Source for [S] {
         } else {
             #[cfg(target_arch = "nvptx64")]
             unsafe {
-                nvptx_sys::__assertfail(
-                    b"Unknown error occured during photon launch from source array\0".as_ptr(),
-                    concat!(file!(), "\0").as_ptr(),
-                    line!(),
-                    b"\0".as_ptr(),
-                    1,
-                );
+                #[cfg(not(debug_assertions))]
+                core::hint::unreachable_unchecked();
+                #[cfg(debug_assertions)]
+                {
+                    nvptx_sys::__assertfail(
+                        b"Unknown error occurred during photon launch from source array\0".as_ptr(),
+                        concat!(file!(), "\0").as_ptr(),
+                        line!(),
+                        b"\0".as_ptr(),
+                        1,
+                    );
+                }
             }
             #[cfg(not(target_arch = "nvptx64"))]
-            unreachable!()
+            unreachable!("Unknown error occurred during photon launch from source array")
         }
     }
 }

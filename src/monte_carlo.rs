@@ -157,14 +157,19 @@ fn safe_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Output {
     } else {
         #[cfg(target_arch = "nvptx64")]
         unsafe {
-            let loc = core::panic::Location::caller();
-            nvptx_sys::__assertfail(
-                b"safe_index out of bounds\0".as_ptr(),
-                loc.file().as_ptr(),
-                loc.line(),
-                b"\0".as_ptr(),
-                1,
-            );
+            #[cfg(not(debug_assertions))]
+            core::hint::unreachable_unchecked();
+            #[cfg(debug_assertions)]
+            {
+                let loc = core::panic::Location::caller();
+                nvptx_sys::__assertfail(
+                    b"safe_index out of bounds\0".as_ptr(),
+                    loc.file().as_ptr(),
+                    loc.line(),
+                    b"\0".as_ptr(),
+                    1,
+                );
+            }
         }
         #[cfg(not(target_arch = "nvptx64"))]
         unreachable!("safe_index out of bounds")
@@ -178,14 +183,19 @@ fn safe_index_mut<T, I: SliceIndex<[T]>>(slice: &mut [T], index: I) -> &mut I::O
     } else {
         #[cfg(target_arch = "nvptx64")]
         unsafe {
-            let loc = core::panic::Location::caller();
-            nvptx_sys::__assertfail(
-                b"safe_index_mut out of bounds\0".as_ptr(),
-                loc.file().as_ptr(),
-                loc.line(),
-                b"\0".as_ptr(),
-                1,
-            );
+            #[cfg(not(debug_assertions))]
+            core::hint::unreachable_unchecked();
+            #[cfg(debug_assertions)]
+            {
+                let loc = core::panic::Location::caller();
+                nvptx_sys::__assertfail(
+                    b"safe_index_mut out of bounds\0".as_ptr(),
+                    loc.file().as_ptr(),
+                    loc.line(),
+                    b"\0".as_ptr(),
+                    1,
+                );
+            }
         }
         #[cfg(not(target_arch = "nvptx64"))]
         unreachable!("safe_index_mut out of bounds")

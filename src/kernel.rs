@@ -60,13 +60,18 @@ unsafe fn kernel<S: Source + ?Sized>(
     let (dyn_mem, dyn_mem_size) = nvptx_sys::dynamic_shared_memory();
     let idx = threadIdx::x() * (nmedia as usize);
     if idx * (nmedia as usize) * core::mem::size_of::<f32>() >= dyn_mem_size {
-        nvptx_sys::__assertfail(
-            b"Not enough dynamic shared memory allocated\0".as_ptr(),
-            concat!(file!(), "\0").as_ptr(),
-            line!(),
-            b"\0".as_ptr(),
-            1,
-        );
+        #[cfg(not(debug_assertions))]
+        core::hint::unreachable_unchecked();
+        #[cfg(debug_assertions)]
+        {
+            nvptx_sys::__assertfail(
+                b"Not enough dynamic shared memory allocated\0".as_ptr(),
+                concat!(file!(), "\0").as_ptr(),
+                line!(),
+                b"\0".as_ptr(),
+                1,
+            );
+        }
     }
     let shared = core::slice::from_raw_parts_mut((dyn_mem as *mut f32).add(idx), nmedia as usize);
 
