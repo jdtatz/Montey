@@ -16,6 +16,6 @@ def fix(ptx_lines):
 
 
 # file is moved to a backup file and standard output is directed to the file
-with input("src/kernel.ptx", inplace=True) as f:
+with input("montey/kernel.ptx", inplace=True) as f:
     for line in fix(f):
         print(line, end="")

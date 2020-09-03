@@ -27,7 +27,7 @@ args = [
     "-Z", "features=all",
     "--",
     "-Csave-temps",
-    "--emit=asm=src/kernel.ptx,llvm-ir=kernel.ll",
+    "--emit=asm=montey/kernel.ptx",
     "-Cdebuginfo=0",
     "-Copt-level=3",
     "-Ccodegen-units=1",
@@ -50,7 +50,7 @@ dependencies = [ "build-kernel", "fix-kernel" ]
 [tasks.verify-kernel]
 dependencies = ["kernel"]
 command = "ptxas"
-args = ["-v", "-arch=sm_52", "src/kernel.ptx"]
+args = ["-v", "-arch=sm_52", "montey/kernel.ptx"]
 
 [tasks.flow-build]
 dependencies = [
