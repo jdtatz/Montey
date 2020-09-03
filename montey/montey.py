@@ -12,7 +12,7 @@ import xarray as xr
 from numba.cuda.random import create_xoroshiro128p_states
 from pint import UnitRegistry, get_application_registry
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Real)
 
 
 @dataclass
@@ -30,6 +30,31 @@ class Vector(Generic[T]):
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
         return np.rec.array([(self.x, self.y, self.z)], dtype=self.dtype(scalar))
+
+    def __neg__(self) -> Vector[T]:
+        return Vector(x=-self.x, y=-self.y, z=-self.z)
+
+    def __add__(self, rhs: Vector[T]) -> Vector[T]:
+        return Vector(x=self.x + rhs.x, y=self.y + rhs.y, z=self.z + rhs.z)
+
+    def __sub__(self, rhs: Vector[T]) -> Vector[T]:
+        return Vector(x=self.x - rhs.x, y=self.y - rhs.y, z=self.z - rhs.z)
+
+    def __mul__(self, rhs: T) -> Vector[T]:
+        return Vector(x=self.x * rhs, y=self.y * rhs, z=self.z * rhs)
+
+    def __div__(self, rhs: T) -> Vector[T]:
+        return Vector(x=self.x / rhs, y=self.y / rhs, z=self.z / rhs)
+
+    def dot(self, rhs: Vector[T]) -> T:
+        return self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
+
+    def cross(self, rhs: Vector[T]) -> Vector[T]:
+        return Vector(
+            x=self.y * rhs.z - self.z * rhs.y,
+            y=self.z * rhs.x - self.x * rhs.z,
+            z=self.x * rhs.y - self.y * rhs.x,
+        )
 
 
 @dataclass
@@ -102,6 +127,28 @@ class Source(ABC):
         raise NotImplementedError
 
 
+S = TypeVar('S', bound=Source)
+
+
+class SourceArray(Source, Generic[S]):
+    def __init__(self, sources: Sequence[S]):
+        if len(sources) == 0:
+            raise TypeError("SourceArray sources must be a non-empty sequence of sources")
+        s = type(sources[0])
+        if not all(s == type(src) for src in sources):
+            raise TypeError("SourceArray sources must all be the same type")
+        self.sources = sources
+
+    def kernel_name(self) -> str:
+        return f"{self.sources[0].kernel_name()}_array"
+
+    def dtype(self, scalar: np.dtype) -> np.dtype:
+        return self.sources[0].dtype(scalar)
+
+    def as_record(self, scalar: np.dtype) -> np.rec.array:
+        return np.stack([src.as_record(scalar) for src in self.sources])
+
+
 @dataclass
 class Pencil(Source):
     position: Vector[Real]
@@ -116,6 +163,40 @@ class Pencil(Source):
     def as_record(self, scalar: np.dtype) -> np.rec.array:
         return np.rec.array(
             [(self.position.as_record(scalar), self.direction.as_record(scalar))],
+            dtype=self.dtype(scalar)
+        )
+
+
+class Disk(Source):
+    def __init__(self, position: Vector[Real], direction: Vector[Real], radius: Real):
+        self.position = position
+        self.direction = direction
+        self.radius = radius
+        z = Vector(0.0, 0.0, 1.0)
+        x_vec = z - direction * direction.dot(z)
+        y_vec = direction.cross(x_vec)
+        self.orthonormal_basis = (x_vec, y_vec)
+
+    def kernel_name(self) -> str:
+        return "disk"
+
+    def dtype(self, scalar: np.dtype) -> np.dtype:
+        return np.dtype([
+            ("position", Vector.dtype(scalar)),
+            ("direction", Vector.dtype(scalar)),
+            ("orthonormal_basis", (Vector.dtype(scalar), 2)),
+            ("radius", scalar)
+        ])
+
+    def as_record(self, scalar: np.dtype) -> np.rec.array:
+        return np.rec.array(
+            [
+                (self.position.as_record(scalar),
+                 self.direction.as_record(scalar),
+                 (self.orthonormal_basis[0].as_record(scalar), self.orthonormal_basis[1].as_record(scalar)),
+                 self.radius
+                 )
+            ],
             dtype=self.dtype(scalar)
         )
 
