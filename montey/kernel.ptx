@@ -3,7 +3,7 @@
 //
 
 .version 6.0
-.target sm_32
+.target sm_52
 .address_size 64
 
 
@@ -20,14 +20,14 @@
 	.param .b64 __assertfail_param_4
 )
 ;
-.global .align 1 .b8 alloc34[61] = {85, 110, 107, 110, 111, 119, 110, 32, 101, 114, 114, 111, 114, 32, 111, 99, 99, 117, 114, 101, 100, 32, 100, 117, 114, 105, 110, 103, 32, 112, 104, 111, 116, 111, 110, 32, 108, 97, 117, 110, 99, 104, 32, 102, 114, 111, 109, 32, 115, 111, 117, 114, 99, 101, 32, 97, 114, 114, 97, 121, 0};
-.global .align 1 .b8 alloc237[15] = {115, 114, 99, 47, 115, 111, 117, 114, 99, 101, 115, 46, 114, 115, 0};
-.global .align 1 .b8 alloc33[1];
-.global .align 1 .b8 alloc35[25] = {115, 97, 102, 101, 95, 105, 110, 100, 101, 120, 32, 111, 117, 116, 32, 111, 102, 32, 98, 111, 117, 110, 100, 115, 0};
-.global .align 1 .b8 alloc36[29] = {115, 97, 102, 101, 95, 105, 110, 100, 101, 120, 95, 109, 117, 116, 32, 111, 117, 116, 32, 111, 102, 32, 98, 111, 117, 110, 100, 115, 0};
-.global .align 1 .b8 alloc258[18] = {115, 114, 99, 47, 109, 111, 110, 116, 101, 95, 99, 97, 114, 108, 111, 46, 114, 115};
-.global .align 1 .b8 alloc32[43] = {78, 111, 116, 32, 101, 110, 111, 117, 103, 104, 32, 100, 121, 110, 97, 109, 105, 99, 32, 115, 104, 97, 114, 101, 100, 32, 109, 101, 109, 111, 114, 121, 32, 97, 108, 108, 111, 99, 97, 116, 101, 100, 0};
-.global .align 1 .b8 alloc263[14] = {115, 114, 99, 47, 107, 101, 114, 110, 101, 108, 46, 114, 115, 0};
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_0[61] = {85, 110, 107, 110, 111, 119, 110, 32, 101, 114, 114, 111, 114, 32, 111, 99, 99, 117, 114, 101, 100, 32, 100, 117, 114, 105, 110, 103, 32, 112, 104, 111, 116, 111, 110, 32, 108, 97, 117, 110, 99, 104, 32, 102, 114, 111, 109, 32, 115, 111, 117, 114, 99, 101, 32, 97, 114, 114, 97, 121, 0};
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_1[15] = {115, 114, 99, 47, 115, 111, 117, 114, 99, 101, 115, 46, 114, 115, 0};
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2[1];
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3[25] = {115, 97, 102, 101, 95, 105, 110, 100, 101, 120, 32, 111, 117, 116, 32, 111, 102, 32, 98, 111, 117, 110, 100, 115, 0};
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4[29] = {115, 97, 102, 101, 95, 105, 110, 100, 101, 120, 95, 109, 117, 116, 32, 111, 117, 116, 32, 111, 102, 32, 98, 111, 117, 110, 100, 115, 0};
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5[18] = {115, 114, 99, 47, 109, 111, 110, 116, 101, 95, 99, 97, 114, 108, 111, 46, 114, 115};
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_16[43] = {78, 111, 116, 32, 101, 110, 111, 117, 103, 104, 32, 100, 121, 110, 97, 109, 105, 99, 32, 115, 104, 97, 114, 101, 100, 32, 109, 101, 109, 111, 114, 121, 32, 97, 108, 108, 111, 99, 97, 116, 101, 100, 0};
+.global .align 1 .b8 anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_17[14] = {115, 114, 99, 47, 107, 101, 114, 110, 101, 108, 46, 114, 115, 0};
 .global .align 4 .b8 anon_$_fa51b759ae39bae5b2ac30f03ad54f2d_$_1[8] = {0, 0, 0, 63, 0, 0, 0, 191};
 
 .visible .entry pencil(
@@ -1259,11 +1259,11 @@ LBB0_140:
 LBB0_142:
 	ret;
 LBB0_56:
-	mov.u64 	%rd183, alloc35;
+	mov.u64 	%rd183, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd184, %rd183;
-	mov.u64 	%rd185, alloc258;
+	mov.u64 	%rd185, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd186, %rd185;
-	mov.u64 	%rd187, alloc33;
+	mov.u64 	%rd187, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd188, %rd187;
 	mov.u32 	%r92, 264;
 	mov.u64 	%rd189, 1;
@@ -1291,11 +1291,11 @@ LBB0_56:
 	} // callseq 4
 	trap;
 LBB0_39:
-	mov.u64 	%rd174, alloc36;
+	mov.u64 	%rd174, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd175, %rd174;
-	mov.u64 	%rd176, alloc258;
+	mov.u64 	%rd176, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd177, %rd176;
-	mov.u64 	%rd178, alloc33;
+	mov.u64 	%rd178, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd179, %rd178;
 	mov.u32 	%r90, 254;
 	mov.u64 	%rd180, 1;
@@ -1323,11 +1323,11 @@ LBB0_39:
 	} // callseq 3
 	trap;
 LBB0_139:
-	mov.u64 	%rd265, alloc36;
+	mov.u64 	%rd265, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd266, %rd265;
-	mov.u64 	%rd267, alloc258;
+	mov.u64 	%rd267, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd268, %rd267;
-	mov.u64 	%rd269, alloc33;
+	mov.u64 	%rd269, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd270, %rd269;
 	mov.u32 	%r146, 369;
 	mov.u64 	%rd271, 1;
@@ -1355,11 +1355,11 @@ LBB0_139:
 	} // callseq 9
 	trap;
 LBB0_60:
-	mov.u64 	%rd192, alloc35;
+	mov.u64 	%rd192, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd193, %rd192;
-	mov.u64 	%rd194, alloc258;
+	mov.u64 	%rd194, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd195, %rd194;
-	mov.u64 	%rd196, alloc33;
+	mov.u64 	%rd196, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd197, %rd196;
 	mov.u32 	%r93, 270;
 	mov.u64 	%rd198, 1;
@@ -1387,11 +1387,11 @@ LBB0_60:
 	} // callseq 5
 	trap;
 LBB0_4:
-	mov.u64 	%rd149, alloc35;
+	mov.u64 	%rd149, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd150, %rd149;
-	mov.u64 	%rd151, alloc258;
+	mov.u64 	%rd151, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd152, %rd151;
-	mov.u64 	%rd153, alloc33;
+	mov.u64 	%rd153, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd154, %rd153;
 	mov.u32 	%r77, 235;
 	mov.u64 	%rd155, 1;
@@ -1419,11 +1419,11 @@ LBB0_4:
 	} // callseq 1
 	trap;
 LBB0_6:
-	mov.u64 	%rd159, alloc35;
+	mov.u64 	%rd159, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd160, %rd159;
-	mov.u64 	%rd161, alloc258;
+	mov.u64 	%rd161, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd162, %rd161;
-	mov.u64 	%rd163, alloc33;
+	mov.u64 	%rd163, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd164, %rd163;
 	mov.u32 	%r78, 236;
 	mov.u64 	%rd165, 1;
@@ -1451,11 +1451,11 @@ LBB0_6:
 	} // callseq 2
 	trap;
 LBB0_81:
-	mov.u64 	%rd201, alloc36;
+	mov.u64 	%rd201, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd202, %rd201;
-	mov.u64 	%rd203, alloc258;
+	mov.u64 	%rd203, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd204, %rd203;
-	mov.u64 	%rd205, alloc33;
+	mov.u64 	%rd205, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd206, %rd205;
 	mov.u32 	%r94, 284;
 	mov.u64 	%rd207, 1;
@@ -1483,11 +1483,11 @@ LBB0_81:
 	} // callseq 6
 	trap;
 LBB0_131:
-	mov.u64 	%rd243, alloc36;
+	mov.u64 	%rd243, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd244, %rd243;
-	mov.u64 	%rd245, alloc258;
+	mov.u64 	%rd245, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd246, %rd245;
-	mov.u64 	%rd247, alloc33;
+	mov.u64 	%rd247, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd248, %rd247;
 	mov.u32 	%r144, 359;
 	mov.u64 	%rd249, 1;
@@ -1515,11 +1515,11 @@ LBB0_131:
 	} // callseq 7
 	trap;
 LBB0_133:
-	mov.u64 	%rd252, alloc36;
+	mov.u64 	%rd252, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd253, %rd252;
-	mov.u64 	%rd254, alloc258;
+	mov.u64 	%rd254, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd255, %rd254;
-	mov.u64 	%rd256, alloc33;
+	mov.u64 	%rd256, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd257, %rd256;
 	mov.u32 	%r145, 360;
 	mov.u64 	%rd258, 1;
@@ -1547,11 +1547,11 @@ LBB0_133:
 	} // callseq 8
 	trap;
 LBB0_135:
-	mov.u64 	%rd272, alloc35;
+	mov.u64 	%rd272, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd273, %rd272;
-	mov.u64 	%rd274, alloc258;
+	mov.u64 	%rd274, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd275, %rd274;
-	mov.u64 	%rd276, alloc33;
+	mov.u64 	%rd276, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd277, %rd276;
 	mov.u32 	%r147, 364;
 	mov.u64 	%rd278, 1;
@@ -1579,13 +1579,13 @@ LBB0_135:
 	} // callseq 10
 	trap;
 LBB0_148:
-	mov.u64 	%rd126, alloc32;
+	mov.u64 	%rd126, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_16;
 	cvta.global.u64 	%rd127, %rd126;
-	mov.u64 	%rd128, alloc263;
+	mov.u64 	%rd128, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_17;
 	cvta.global.u64 	%rd129, %rd128;
-	mov.u64 	%rd130, alloc33;
+	mov.u64 	%rd130, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd131, %rd130;
-	mov.u32 	%r69, 66;
+	mov.u32 	%r69, 67;
 	mov.u64 	%rd132, 1;
 	{ // callseq 0, 0
 	.reg .b32 temp_param_reg;
@@ -2878,11 +2878,11 @@ LBB1_142:
 LBB1_144:
 	ret;
 LBB1_58:
-	mov.u64 	%rd203, alloc35;
+	mov.u64 	%rd203, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd204, %rd203;
-	mov.u64 	%rd205, alloc258;
+	mov.u64 	%rd205, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd206, %rd205;
-	mov.u64 	%rd207, alloc33;
+	mov.u64 	%rd207, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd208, %rd207;
 	mov.u32 	%r95, 264;
 	mov.u64 	%rd209, 1;
@@ -2910,11 +2910,11 @@ LBB1_58:
 	} // callseq 16
 	trap;
 LBB1_41:
-	mov.u64 	%rd194, alloc36;
+	mov.u64 	%rd194, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd195, %rd194;
-	mov.u64 	%rd196, alloc258;
+	mov.u64 	%rd196, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd197, %rd196;
-	mov.u64 	%rd198, alloc33;
+	mov.u64 	%rd198, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd199, %rd198;
 	mov.u32 	%r93, 254;
 	mov.u64 	%rd200, 1;
@@ -2942,11 +2942,11 @@ LBB1_41:
 	} // callseq 15
 	trap;
 LBB1_141:
-	mov.u64 	%rd285, alloc36;
+	mov.u64 	%rd285, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd286, %rd285;
-	mov.u64 	%rd287, alloc258;
+	mov.u64 	%rd287, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd288, %rd287;
-	mov.u64 	%rd289, alloc33;
+	mov.u64 	%rd289, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd290, %rd289;
 	mov.u32 	%r149, 369;
 	mov.u64 	%rd291, 1;
@@ -2974,11 +2974,11 @@ LBB1_141:
 	} // callseq 21
 	trap;
 LBB1_62:
-	mov.u64 	%rd212, alloc35;
+	mov.u64 	%rd212, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd213, %rd212;
-	mov.u64 	%rd214, alloc258;
+	mov.u64 	%rd214, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd215, %rd214;
-	mov.u64 	%rd216, alloc33;
+	mov.u64 	%rd216, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd217, %rd216;
 	mov.u32 	%r96, 270;
 	mov.u64 	%rd218, 1;
@@ -3006,11 +3006,11 @@ LBB1_62:
 	} // callseq 17
 	trap;
 LBB1_4:
-	mov.u64 	%rd160, alloc34;
+	mov.u64 	%rd160, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_0;
 	cvta.global.u64 	%rd161, %rd160;
-	mov.u64 	%rd162, alloc237;
+	mov.u64 	%rd162, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_1;
 	cvta.global.u64 	%rd163, %rd162;
-	mov.u64 	%rd164, alloc33;
+	mov.u64 	%rd164, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd165, %rd164;
 	mov.u32 	%r75, 34;
 	mov.u64 	%rd166, 1;
@@ -3038,11 +3038,11 @@ LBB1_4:
 	} // callseq 12
 	trap;
 LBB1_6:
-	mov.u64 	%rd169, alloc35;
+	mov.u64 	%rd169, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd170, %rd169;
-	mov.u64 	%rd171, alloc258;
+	mov.u64 	%rd171, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd172, %rd171;
-	mov.u64 	%rd173, alloc33;
+	mov.u64 	%rd173, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd174, %rd173;
 	mov.u32 	%r80, 235;
 	mov.u64 	%rd175, 1;
@@ -3070,11 +3070,11 @@ LBB1_6:
 	} // callseq 13
 	trap;
 LBB1_8:
-	mov.u64 	%rd179, alloc35;
+	mov.u64 	%rd179, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd180, %rd179;
-	mov.u64 	%rd181, alloc258;
+	mov.u64 	%rd181, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd182, %rd181;
-	mov.u64 	%rd183, alloc33;
+	mov.u64 	%rd183, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd184, %rd183;
 	mov.u32 	%r81, 236;
 	mov.u64 	%rd185, 1;
@@ -3102,11 +3102,11 @@ LBB1_8:
 	} // callseq 14
 	trap;
 LBB1_83:
-	mov.u64 	%rd221, alloc36;
+	mov.u64 	%rd221, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd222, %rd221;
-	mov.u64 	%rd223, alloc258;
+	mov.u64 	%rd223, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd224, %rd223;
-	mov.u64 	%rd225, alloc33;
+	mov.u64 	%rd225, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd226, %rd225;
 	mov.u32 	%r97, 284;
 	mov.u64 	%rd227, 1;
@@ -3134,11 +3134,11 @@ LBB1_83:
 	} // callseq 18
 	trap;
 LBB1_133:
-	mov.u64 	%rd263, alloc36;
+	mov.u64 	%rd263, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd264, %rd263;
-	mov.u64 	%rd265, alloc258;
+	mov.u64 	%rd265, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd266, %rd265;
-	mov.u64 	%rd267, alloc33;
+	mov.u64 	%rd267, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd268, %rd267;
 	mov.u32 	%r147, 359;
 	mov.u64 	%rd269, 1;
@@ -3166,11 +3166,11 @@ LBB1_133:
 	} // callseq 19
 	trap;
 LBB1_135:
-	mov.u64 	%rd272, alloc36;
+	mov.u64 	%rd272, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd273, %rd272;
-	mov.u64 	%rd274, alloc258;
+	mov.u64 	%rd274, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd275, %rd274;
-	mov.u64 	%rd276, alloc33;
+	mov.u64 	%rd276, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd277, %rd276;
 	mov.u32 	%r148, 360;
 	mov.u64 	%rd278, 1;
@@ -3198,11 +3198,11 @@ LBB1_135:
 	} // callseq 20
 	trap;
 LBB1_137:
-	mov.u64 	%rd292, alloc35;
+	mov.u64 	%rd292, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd293, %rd292;
-	mov.u64 	%rd294, alloc258;
+	mov.u64 	%rd294, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd295, %rd294;
-	mov.u64 	%rd296, alloc33;
+	mov.u64 	%rd296, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd297, %rd296;
 	mov.u32 	%r150, 364;
 	mov.u64 	%rd298, 1;
@@ -3230,13 +3230,13 @@ LBB1_137:
 	} // callseq 22
 	trap;
 LBB1_150:
-	mov.u64 	%rd132, alloc32;
+	mov.u64 	%rd132, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_16;
 	cvta.global.u64 	%rd133, %rd132;
-	mov.u64 	%rd134, alloc263;
+	mov.u64 	%rd134, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_17;
 	cvta.global.u64 	%rd135, %rd134;
-	mov.u64 	%rd136, alloc33;
+	mov.u64 	%rd136, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd137, %rd136;
-	mov.u32 	%r70, 66;
+	mov.u32 	%r70, 67;
 	mov.u64 	%rd138, 1;
 	{ // callseq 11, 0
 	.reg .b32 temp_param_reg;
@@ -4795,11 +4795,11 @@ LBB2_162:
 LBB2_164:
 	ret;
 LBB2_78:
-	mov.u64 	%rd213, alloc35;
+	mov.u64 	%rd213, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd214, %rd213;
-	mov.u64 	%rd215, alloc258;
+	mov.u64 	%rd215, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd216, %rd215;
-	mov.u64 	%rd217, alloc33;
+	mov.u64 	%rd217, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd218, %rd217;
 	mov.u32 	%r128, 264;
 	mov.u64 	%rd219, 1;
@@ -4827,11 +4827,11 @@ LBB2_78:
 	} // callseq 27
 	trap;
 LBB2_61:
-	mov.u64 	%rd204, alloc36;
+	mov.u64 	%rd204, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd205, %rd204;
-	mov.u64 	%rd206, alloc258;
+	mov.u64 	%rd206, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd207, %rd206;
-	mov.u64 	%rd208, alloc33;
+	mov.u64 	%rd208, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd209, %rd208;
 	mov.u32 	%r126, 254;
 	mov.u64 	%rd210, 1;
@@ -4859,11 +4859,11 @@ LBB2_61:
 	} // callseq 26
 	trap;
 LBB2_161:
-	mov.u64 	%rd295, alloc36;
+	mov.u64 	%rd295, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd296, %rd295;
-	mov.u64 	%rd297, alloc258;
+	mov.u64 	%rd297, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd298, %rd297;
-	mov.u64 	%rd299, alloc33;
+	mov.u64 	%rd299, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd300, %rd299;
 	mov.u32 	%r182, 369;
 	mov.u64 	%rd301, 1;
@@ -4891,11 +4891,11 @@ LBB2_161:
 	} // callseq 32
 	trap;
 LBB2_82:
-	mov.u64 	%rd222, alloc35;
+	mov.u64 	%rd222, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd223, %rd222;
-	mov.u64 	%rd224, alloc258;
+	mov.u64 	%rd224, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd225, %rd224;
-	mov.u64 	%rd226, alloc33;
+	mov.u64 	%rd226, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd227, %rd226;
 	mov.u32 	%r129, 270;
 	mov.u64 	%rd228, 1;
@@ -4923,11 +4923,11 @@ LBB2_82:
 	} // callseq 28
 	trap;
 LBB2_26:
-	mov.u64 	%rd179, alloc35;
+	mov.u64 	%rd179, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd180, %rd179;
-	mov.u64 	%rd181, alloc258;
+	mov.u64 	%rd181, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd182, %rd181;
-	mov.u64 	%rd183, alloc33;
+	mov.u64 	%rd183, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd184, %rd183;
 	mov.u32 	%r113, 235;
 	mov.u64 	%rd185, 1;
@@ -4955,11 +4955,11 @@ LBB2_26:
 	} // callseq 24
 	trap;
 LBB2_28:
-	mov.u64 	%rd189, alloc35;
+	mov.u64 	%rd189, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd190, %rd189;
-	mov.u64 	%rd191, alloc258;
+	mov.u64 	%rd191, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd192, %rd191;
-	mov.u64 	%rd193, alloc33;
+	mov.u64 	%rd193, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd194, %rd193;
 	mov.u32 	%r114, 236;
 	mov.u64 	%rd195, 1;
@@ -4987,11 +4987,11 @@ LBB2_28:
 	} // callseq 25
 	trap;
 LBB2_103:
-	mov.u64 	%rd231, alloc36;
+	mov.u64 	%rd231, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd232, %rd231;
-	mov.u64 	%rd233, alloc258;
+	mov.u64 	%rd233, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd234, %rd233;
-	mov.u64 	%rd235, alloc33;
+	mov.u64 	%rd235, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd236, %rd235;
 	mov.u32 	%r130, 284;
 	mov.u64 	%rd237, 1;
@@ -5019,11 +5019,11 @@ LBB2_103:
 	} // callseq 29
 	trap;
 LBB2_153:
-	mov.u64 	%rd273, alloc36;
+	mov.u64 	%rd273, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd274, %rd273;
-	mov.u64 	%rd275, alloc258;
+	mov.u64 	%rd275, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd276, %rd275;
-	mov.u64 	%rd277, alloc33;
+	mov.u64 	%rd277, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd278, %rd277;
 	mov.u32 	%r180, 359;
 	mov.u64 	%rd279, 1;
@@ -5051,11 +5051,11 @@ LBB2_153:
 	} // callseq 30
 	trap;
 LBB2_155:
-	mov.u64 	%rd282, alloc36;
+	mov.u64 	%rd282, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd283, %rd282;
-	mov.u64 	%rd284, alloc258;
+	mov.u64 	%rd284, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd285, %rd284;
-	mov.u64 	%rd286, alloc33;
+	mov.u64 	%rd286, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd287, %rd286;
 	mov.u32 	%r181, 360;
 	mov.u64 	%rd288, 1;
@@ -5083,11 +5083,11 @@ LBB2_155:
 	} // callseq 31
 	trap;
 LBB2_157:
-	mov.u64 	%rd302, alloc35;
+	mov.u64 	%rd302, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd303, %rd302;
-	mov.u64 	%rd304, alloc258;
+	mov.u64 	%rd304, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd305, %rd304;
-	mov.u64 	%rd306, alloc33;
+	mov.u64 	%rd306, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd307, %rd306;
 	mov.u32 	%r183, 364;
 	mov.u64 	%rd308, 1;
@@ -5115,13 +5115,13 @@ LBB2_157:
 	} // callseq 33
 	trap;
 LBB2_172:
-	mov.u64 	%rd138, alloc32;
+	mov.u64 	%rd138, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_16;
 	cvta.global.u64 	%rd139, %rd138;
-	mov.u64 	%rd140, alloc263;
+	mov.u64 	%rd140, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_17;
 	cvta.global.u64 	%rd141, %rd140;
-	mov.u64 	%rd142, alloc33;
+	mov.u64 	%rd142, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd143, %rd142;
-	mov.u32 	%r77, 66;
+	mov.u32 	%r77, 67;
 	mov.u64 	%rd144, 1;
 	{ // callseq 23, 0
 	.reg .b32 temp_param_reg;
@@ -6716,11 +6716,11 @@ LBB3_164:
 LBB3_166:
 	ret;
 LBB3_80:
-	mov.u64 	%rd233, alloc35;
+	mov.u64 	%rd233, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd234, %rd233;
-	mov.u64 	%rd235, alloc258;
+	mov.u64 	%rd235, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd236, %rd235;
-	mov.u64 	%rd237, alloc33;
+	mov.u64 	%rd237, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd238, %rd237;
 	mov.u32 	%r131, 264;
 	mov.u64 	%rd239, 1;
@@ -6748,11 +6748,11 @@ LBB3_80:
 	} // callseq 39
 	trap;
 LBB3_63:
-	mov.u64 	%rd224, alloc36;
+	mov.u64 	%rd224, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd225, %rd224;
-	mov.u64 	%rd226, alloc258;
+	mov.u64 	%rd226, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd227, %rd226;
-	mov.u64 	%rd228, alloc33;
+	mov.u64 	%rd228, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd229, %rd228;
 	mov.u32 	%r129, 254;
 	mov.u64 	%rd230, 1;
@@ -6780,11 +6780,11 @@ LBB3_63:
 	} // callseq 38
 	trap;
 LBB3_163:
-	mov.u64 	%rd315, alloc36;
+	mov.u64 	%rd315, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd316, %rd315;
-	mov.u64 	%rd317, alloc258;
+	mov.u64 	%rd317, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd318, %rd317;
-	mov.u64 	%rd319, alloc33;
+	mov.u64 	%rd319, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd320, %rd319;
 	mov.u32 	%r185, 369;
 	mov.u64 	%rd321, 1;
@@ -6812,11 +6812,11 @@ LBB3_163:
 	} // callseq 44
 	trap;
 LBB3_84:
-	mov.u64 	%rd242, alloc35;
+	mov.u64 	%rd242, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd243, %rd242;
-	mov.u64 	%rd244, alloc258;
+	mov.u64 	%rd244, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd245, %rd244;
-	mov.u64 	%rd246, alloc33;
+	mov.u64 	%rd246, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd247, %rd246;
 	mov.u32 	%r132, 270;
 	mov.u64 	%rd248, 1;
@@ -6844,11 +6844,11 @@ LBB3_84:
 	} // callseq 40
 	trap;
 LBB3_4:
-	mov.u64 	%rd170, alloc34;
+	mov.u64 	%rd170, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_0;
 	cvta.global.u64 	%rd171, %rd170;
-	mov.u64 	%rd172, alloc237;
+	mov.u64 	%rd172, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_1;
 	cvta.global.u64 	%rd173, %rd172;
-	mov.u64 	%rd174, alloc33;
+	mov.u64 	%rd174, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd175, %rd174;
 	mov.u32 	%r83, 34;
 	mov.u64 	%rd176, 1;
@@ -6876,11 +6876,11 @@ LBB3_4:
 	} // callseq 35
 	trap;
 LBB3_28:
-	mov.u64 	%rd199, alloc35;
+	mov.u64 	%rd199, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd200, %rd199;
-	mov.u64 	%rd201, alloc258;
+	mov.u64 	%rd201, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd202, %rd201;
-	mov.u64 	%rd203, alloc33;
+	mov.u64 	%rd203, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd204, %rd203;
 	mov.u32 	%r116, 235;
 	mov.u64 	%rd205, 1;
@@ -6908,11 +6908,11 @@ LBB3_28:
 	} // callseq 36
 	trap;
 LBB3_30:
-	mov.u64 	%rd209, alloc35;
+	mov.u64 	%rd209, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd210, %rd209;
-	mov.u64 	%rd211, alloc258;
+	mov.u64 	%rd211, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd212, %rd211;
-	mov.u64 	%rd213, alloc33;
+	mov.u64 	%rd213, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd214, %rd213;
 	mov.u32 	%r117, 236;
 	mov.u64 	%rd215, 1;
@@ -6940,11 +6940,11 @@ LBB3_30:
 	} // callseq 37
 	trap;
 LBB3_105:
-	mov.u64 	%rd251, alloc36;
+	mov.u64 	%rd251, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd252, %rd251;
-	mov.u64 	%rd253, alloc258;
+	mov.u64 	%rd253, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd254, %rd253;
-	mov.u64 	%rd255, alloc33;
+	mov.u64 	%rd255, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd256, %rd255;
 	mov.u32 	%r133, 284;
 	mov.u64 	%rd257, 1;
@@ -6972,11 +6972,11 @@ LBB3_105:
 	} // callseq 41
 	trap;
 LBB3_155:
-	mov.u64 	%rd293, alloc36;
+	mov.u64 	%rd293, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd294, %rd293;
-	mov.u64 	%rd295, alloc258;
+	mov.u64 	%rd295, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd296, %rd295;
-	mov.u64 	%rd297, alloc33;
+	mov.u64 	%rd297, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd298, %rd297;
 	mov.u32 	%r183, 359;
 	mov.u64 	%rd299, 1;
@@ -7004,11 +7004,11 @@ LBB3_155:
 	} // callseq 42
 	trap;
 LBB3_157:
-	mov.u64 	%rd302, alloc36;
+	mov.u64 	%rd302, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_4;
 	cvta.global.u64 	%rd303, %rd302;
-	mov.u64 	%rd304, alloc258;
+	mov.u64 	%rd304, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd305, %rd304;
-	mov.u64 	%rd306, alloc33;
+	mov.u64 	%rd306, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd307, %rd306;
 	mov.u32 	%r184, 360;
 	mov.u64 	%rd308, 1;
@@ -7036,11 +7036,11 @@ LBB3_157:
 	} // callseq 43
 	trap;
 LBB3_159:
-	mov.u64 	%rd322, alloc35;
+	mov.u64 	%rd322, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_3;
 	cvta.global.u64 	%rd323, %rd322;
-	mov.u64 	%rd324, alloc258;
+	mov.u64 	%rd324, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_5;
 	cvta.global.u64 	%rd325, %rd324;
-	mov.u64 	%rd326, alloc33;
+	mov.u64 	%rd326, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd327, %rd326;
 	mov.u32 	%r186, 364;
 	mov.u64 	%rd328, 1;
@@ -7068,13 +7068,13 @@ LBB3_159:
 	} // callseq 45
 	trap;
 LBB3_174:
-	mov.u64 	%rd146, alloc32;
+	mov.u64 	%rd146, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_16;
 	cvta.global.u64 	%rd147, %rd146;
-	mov.u64 	%rd148, alloc263;
+	mov.u64 	%rd148, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_17;
 	cvta.global.u64 	%rd149, %rd148;
-	mov.u64 	%rd150, alloc33;
+	mov.u64 	%rd150, anon_$_e1d78f73ccfd3072cf9efcfe3407c113_$_2;
 	cvta.global.u64 	%rd151, %rd150;
-	mov.u32 	%r78, 66;
+	mov.u32 	%r78, 67;
 	mov.u64 	%rd152, 1;
 	{ // callseq 34, 0
 	.reg .b32 temp_param_reg;

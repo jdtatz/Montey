@@ -72,7 +72,6 @@ ax.plot(np.rad2deg(res["PhiPhase"]), '*--')
 fig.tight_layout()
 fig.savefig("phase.png", dpi=300)
 
-
 # Plot Fd
 fd = np.exp(1j * res["PhiPhase"]) * res["PhiTD"].sum(axis=1)
 print(res["PhiPhase"])

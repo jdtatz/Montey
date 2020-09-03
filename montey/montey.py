@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from importlib.resources import path
+from numbers import Real
+from typing import Tuple, Sequence, TypeVar, Generic, Optional
+
+import cupy as cu
 import numpy as np
 import xarray as xr
-import cupy as cu
 from numba.cuda.random import create_xoroshiro128p_states
-from typing import Tuple, Sequence, TypeVar, Generic, Optional
-from numbers import Real
 from pint import UnitRegistry, get_application_registry
 
 T = TypeVar("T")
@@ -80,7 +82,10 @@ class Specification:
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
         d = Vector(*self.voxel_dim).as_record(scalar)
-        return np.rec.array([(self.nphoton, d, self.lifetime_max, self.dt, self.lightspeed, self.freq)], dtype=self.dtype(scalar))
+        return np.rec.array(
+            [(self.nphoton, d, self.lifetime_max, self.dt, self.lightspeed, self.freq)],
+            dtype=self.dtype(scalar)
+        )
 
 
 class Source(ABC):
@@ -109,7 +114,10 @@ class Pencil(Source):
         return np.dtype([("position", Vector.dtype(scalar)), ("direction", Vector.dtype(scalar))])
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
-        return np.rec.array([(self.position.as_record(scalar), self.direction.as_record(scalar))], dtype=self.dtype(scalar))
+        return np.rec.array(
+            [(self.position.as_record(scalar), self.direction.as_record(scalar))],
+            dtype=self.dtype(scalar)
+        )
 
 
 @cu.memoize(for_each_device=True)
@@ -178,11 +186,29 @@ def monte_carlo(spec: Specification, source: Source, states: Sequence[State], de
 
     return xr.Dataset(
         {
-            "Photons": (["detector", "time"], photon_counter.sum(axis=0, dtype=np.uint64)),
-            "PhiTD": (["detector", "time"], phi_td.sum(axis=0, dtype=np.float64) / pcount, {"long_name": "Φ"}),
-            "PhiPhase": (["detector"], phi_phase.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64), {"units": ureg.rad, "long_name": "Φ Phase"}),
-            "PhiDist": (["detector", "time", "layer"], phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None], {"long_name": "Φ Distribution"}),
-            "Fluence": (["x", "y", "z", "time"], fluence),
+            "Photons": (
+                ["detector", "time"],
+                photon_counter.sum(axis=0, dtype=np.uint64)
+            ),
+            "PhiTD": (
+                ["detector", "time"],
+                phi_td.sum(axis=0, dtype=np.float64) / pcount,
+                {"long_name": "Φ"}
+            ),
+            "PhiPhase": (
+                ["detector"],
+                phi_phase.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64),
+                {"units": ureg.rad, "long_name": "Φ Phase"}
+            ),
+            "PhiDist": (
+                ["detector", "time", "layer"],
+                phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
+                {"long_name": "Φ Distribution"}
+            ),
+            "Fluence": (
+                ["x", "y", "z", "time"],
+                fluence
+            ),
         },
         coords={
             "time": (["time"], (np.arange(ntof) + 0.5) * spec.dt, {"units": ureg.second}),

@@ -50,7 +50,8 @@ unsafe fn kernel<S: Source + ?Sized>(
     let rng = core::mem::transmute(rngs.add(gid as usize).read());
     let len = (ndet * ntof) as usize;
     let phi_td = core::slice::from_raw_parts_mut(phi_td.add((gid * len) as usize), len as usize);
-    let phi_phase = core::slice::from_raw_parts_mut(phi_phase.add(gid * ndet as usize), ndet as usize);
+    let phi_phase =
+        core::slice::from_raw_parts_mut(phi_phase.add(gid * ndet as usize), ndet as usize);
     let len = (ndet * ntof * nmedia) as usize;
     let phi_dist =
         core::slice::from_raw_parts_mut(phi_dist.add((gid * len) as usize), len as usize);

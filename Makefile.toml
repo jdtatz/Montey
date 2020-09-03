@@ -33,7 +33,7 @@ args = [
     "-Ccodegen-units=1",
     "-Clto",
     "-Cembed-bitcode=yes",
-    "-Ctarget-cpu=sm_32",
+    "-Ctarget-cpu=sm_52",
     "-Ctarget-feature=+ptx60",
     "-Clinker=echo",
     "-Z", "no-link",
