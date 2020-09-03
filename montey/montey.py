@@ -66,10 +66,14 @@ class State:
 
     @staticmethod
     def dtype(scalar: np.dtype) -> np.dtype:
-        return np.dtype([("mua", scalar), ("mus", scalar), ("g", scalar), ("n", scalar)])
+        return np.dtype(
+            [("mua", scalar), ("mus", scalar), ("g", scalar), ("n", scalar)]
+        )
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
-        return np.rec.array([(self.mua, self.mus, self.g, self.n)], dtype=self.dtype(scalar))
+        return np.rec.array(
+            [(self.mua, self.mus, self.g, self.n)], dtype=self.dtype(scalar)
+        )
 
 
 @dataclass
@@ -82,7 +86,9 @@ class Detector:
         return np.dtype([("position", Vector.dtype(scalar)), ("radius", scalar)])
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
-        return np.rec.array([(self.position.as_record(scalar), self.radius)], dtype=self.dtype(scalar))
+        return np.rec.array(
+            [(self.position.as_record(scalar), self.radius)], dtype=self.dtype(scalar)
+        )
 
 
 @dataclass
@@ -96,20 +102,22 @@ class Specification:
 
     @staticmethod
     def dtype(scalar: np.dtype) -> np.dtype:
-        return np.dtype([
-            ("nphoton", np.uint32),
-            ("voxel_dim", Vector.dtype(scalar)),
-            ("lifetime_max", scalar),
-            ("dt", scalar),
-            ("lightspeed", scalar),
-            ("freq", scalar),
-        ])
+        return np.dtype(
+            [
+                ("nphoton", np.uint32),
+                ("voxel_dim", Vector.dtype(scalar)),
+                ("lifetime_max", scalar),
+                ("dt", scalar),
+                ("lightspeed", scalar),
+                ("freq", scalar),
+            ]
+        )
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
         d = Vector(*self.voxel_dim).as_record(scalar)
         return np.rec.array(
             [(self.nphoton, d, self.lifetime_max, self.dt, self.lightspeed, self.freq)],
-            dtype=self.dtype(scalar)
+            dtype=self.dtype(scalar),
         )
 
 
@@ -127,13 +135,15 @@ class Source(ABC):
         raise NotImplementedError
 
 
-S = TypeVar('S', bound=Source)
+S = TypeVar("S", bound=Source)
 
 
 class SourceArray(Source, Generic[S]):
     def __init__(self, sources: Sequence[S]):
         if len(sources) == 0:
-            raise TypeError("SourceArray sources must be a non-empty sequence of sources")
+            raise TypeError(
+                "SourceArray sources must be a non-empty sequence of sources"
+            )
         s = type(sources[0])
         if not all(s == type(src) for src in sources):
             raise TypeError("SourceArray sources must all be the same type")
@@ -158,12 +168,14 @@ class Pencil(Source):
         return "pencil"
 
     def dtype(self, scalar: np.dtype) -> np.dtype:
-        return np.dtype([("position", Vector.dtype(scalar)), ("direction", Vector.dtype(scalar))])
+        return np.dtype(
+            [("position", Vector.dtype(scalar)), ("direction", Vector.dtype(scalar))]
+        )
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
         return np.rec.array(
             [(self.position.as_record(scalar), self.direction.as_record(scalar))],
-            dtype=self.dtype(scalar)
+            dtype=self.dtype(scalar),
         )
 
 
@@ -181,23 +193,29 @@ class Disk(Source):
         return "disk"
 
     def dtype(self, scalar: np.dtype) -> np.dtype:
-        return np.dtype([
-            ("position", Vector.dtype(scalar)),
-            ("direction", Vector.dtype(scalar)),
-            ("orthonormal_basis", (Vector.dtype(scalar), 2)),
-            ("radius", scalar)
-        ])
+        return np.dtype(
+            [
+                ("position", Vector.dtype(scalar)),
+                ("direction", Vector.dtype(scalar)),
+                ("orthonormal_basis", (Vector.dtype(scalar), 2)),
+                ("radius", scalar),
+            ]
+        )
 
     def as_record(self, scalar: np.dtype) -> np.rec.array:
         return np.rec.array(
             [
-                (self.position.as_record(scalar),
-                 self.direction.as_record(scalar),
-                 (self.orthonormal_basis[0].as_record(scalar), self.orthonormal_basis[1].as_record(scalar)),
-                 self.radius
-                 )
+                (
+                    self.position.as_record(scalar),
+                    self.direction.as_record(scalar),
+                    (
+                        self.orthonormal_basis[0].as_record(scalar),
+                        self.orthonormal_basis[1].as_record(scalar),
+                    ),
+                    self.radius,
+                )
             ],
-            dtype=self.dtype(scalar)
+            dtype=self.dtype(scalar),
         )
 
 
@@ -212,9 +230,17 @@ def load_kernel(kernel_name: str):
     return load_module().get_function(kernel_name)
 
 
-def monte_carlo(spec: Specification, source: Source, states: Sequence[State], detectors: Sequence[Detector],
-                media: np.uint8[:, :, ::1], seed: int = 12345, nwarp: int = 4, nblock: int = 512,
-                ureg: Optional[UnitRegistry] = None) -> xr.Dataset:
+def monte_carlo(
+    spec: Specification,
+    source: Source,
+    states: Sequence[State],
+    detectors: Sequence[Detector],
+    media: np.uint8[:, :, ::1],
+    seed: int = 12345,
+    nwarp: int = 4,
+    nblock: int = 512,
+    ureg: Optional[UnitRegistry] = None,
+) -> xr.Dataset:
     if ureg is None:
         ureg = get_application_registry()
     nthread = nblock * nwarp * 32
@@ -256,7 +282,12 @@ def monte_carlo(spec: Specification, source: Source, states: Sequence[State], de
     kernel = load_kernel(source.kernel_name())
     start_event = cu.cuda.Event()
     start_event.record()
-    kernel(args=args, block=(nwarp * 32, 1, 1), grid=(nblock, 1), shared_mem=nwarp * 32 * nmedia * 4)
+    kernel(
+        args=args,
+        block=(nwarp * 32, 1, 1),
+        grid=(nblock, 1),
+        shared_mem=nwarp * 32 * nmedia * 4,
+    )
     end_event = cu.cuda.Event(block=True)
     end_event.record()
     end_event.synchronize()
@@ -269,29 +300,32 @@ def monte_carlo(spec: Specification, source: Source, states: Sequence[State], de
         {
             "Photons": (
                 ["detector", "time"],
-                photon_counter.sum(axis=0, dtype=np.uint64)
+                photon_counter.sum(axis=0, dtype=np.uint64),
             ),
             "PhiTD": (
                 ["detector", "time"],
                 phi_td.sum(axis=0, dtype=np.float64) / pcount,
-                {"long_name": "Φ"}
+                {"long_name": "Φ"},
             ),
             "PhiPhase": (
                 ["detector"],
-                phi_phase.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64),
-                {"units": ureg.rad, "long_name": "Φ Phase"}
+                phi_phase.sum(axis=0, dtype=np.float64)
+                / phi_td.sum(axis=(0, 2), dtype=np.float64),
+                {"units": ureg.rad, "long_name": "Φ Phase"},
             ),
             "PhiDist": (
                 ["detector", "time", "layer"],
-                phi_dist.sum(axis=0, dtype=np.float64) / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
-                {"long_name": "Φ Distribution"}
+                phi_dist.sum(axis=0, dtype=np.float64)
+                / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
+                {"long_name": "Φ Distribution"},
             ),
-            "Fluence": (
-                ["x", "y", "z", "time"],
-                fluence
-            ),
+            "Fluence": (["x", "y", "z", "time"], fluence),
         },
         coords={
-            "time": (["time"], (np.arange(ntof) + 0.5) * spec.dt, {"units": ureg.second}),
-        }
+            "time": (
+                ["time"],
+                (np.arange(ntof) + 0.5) * spec.dt,
+                {"units": ureg.second},
+            ),
+        },
     )
