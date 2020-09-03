@@ -1,0 +1,7 @@
+include montey/*.py
+include montey/kernel.ptx
+include src/*.rs
+include Cargo.toml
+include Makefile.toml
+include nvptx64-nvidia-cuda.json
+include fix_ptx.py
