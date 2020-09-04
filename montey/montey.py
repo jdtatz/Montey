@@ -4,13 +4,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from importlib.resources import path
 from numbers import Real
-from typing import Tuple, Sequence, TypeVar, Generic, Optional
+from typing import Tuple, Sequence, TypeVar, Generic, Optional, Union, Type
 
 import cupy as cu
 import numpy as np
 import xarray as xr
 from numba.cuda.random import create_xoroshiro128p_states
 from pint import UnitRegistry, get_application_registry
+
+ArrayScalar = TypeVar('ArrayScalar', bound=np.generic)
+DTypeLike = Union[np.dtype, None, Type[ArrayScalar]]
 
 T = TypeVar("T", bound=Real)
 
@@ -25,10 +28,10 @@ class Vector(Generic[T]):
         return self.x, self.y, self.z
 
     @staticmethod
-    def dtype(scalar: np.dtype) -> np.dtype:
+    def dtype(scalar: DTypeLike) -> np.dtype:
         return np.dtype([("x", scalar), ("y", scalar), ("z", scalar)])
 
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
         return np.rec.array([(self.x, self.y, self.z)], dtype=self.dtype(scalar))
 
     def __neg__(self) -> Vector[T]:
@@ -65,12 +68,12 @@ class State:
     n: Real
 
     @staticmethod
-    def dtype(scalar: np.dtype) -> np.dtype:
+    def dtype(scalar: DTypeLike) -> np.dtype:
         return np.dtype(
             [("mua", scalar), ("mus", scalar), ("g", scalar), ("n", scalar)]
         )
 
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
         return np.rec.array(
             [(self.mua, self.mus, self.g, self.n)], dtype=self.dtype(scalar)
         )
@@ -82,10 +85,10 @@ class Detector:
     radius: Real
 
     @staticmethod
-    def dtype(scalar: np.dtype) -> np.dtype:
+    def dtype(scalar: DTypeLike) -> np.dtype:
         return np.dtype([("position", Vector.dtype(scalar)), ("radius", scalar)])
 
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
         return np.rec.array(
             [(self.position.as_record(scalar), self.radius)], dtype=self.dtype(scalar)
         )
@@ -101,7 +104,7 @@ class Specification:
     freq: Real
 
     @staticmethod
-    def dtype(scalar: np.dtype) -> np.dtype:
+    def dtype(scalar: DTypeLike) -> np.dtype:
         return np.dtype(
             [
                 ("nphoton", np.uint32),
@@ -113,7 +116,7 @@ class Specification:
             ]
         )
 
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
         d = Vector(*self.voxel_dim).as_record(scalar)
         return np.rec.array(
             [(self.nphoton, d, self.lifetime_max, self.dt, self.lightspeed, self.freq)],
@@ -127,11 +130,11 @@ class Source(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def dtype(self, scalar: np.dtype) -> np.dtype:
+    def dtype(self, scalar: DTypeLike) -> np.dtype:
         raise NotImplementedError
 
     @abstractmethod
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
         raise NotImplementedError
 
 
@@ -152,11 +155,11 @@ class SourceArray(Source, Generic[S]):
     def kernel_name(self) -> str:
         return f"{self.sources[0].kernel_name()}_array"
 
-    def dtype(self, scalar: np.dtype) -> np.dtype:
+    def dtype(self, scalar: DTypeLike) -> np.dtype:
         return self.sources[0].dtype(scalar)
 
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
-        return np.stack([src.as_record(scalar) for src in self.sources])
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
+        return np.stack([src.as_record(scalar) for src in self.sources]).view(np.recarray)
 
 
 @dataclass
@@ -167,12 +170,12 @@ class Pencil(Source):
     def kernel_name(self) -> str:
         return "pencil"
 
-    def dtype(self, scalar: np.dtype) -> np.dtype:
+    def dtype(self, scalar: DTypeLike) -> np.dtype:
         return np.dtype(
             [("position", Vector.dtype(scalar)), ("direction", Vector.dtype(scalar))]
         )
 
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
+    def as_record(self, scalar: DTypeLike) -> np.rec.array:
         return np.rec.array(
             [(self.position.as_record(scalar), self.direction.as_record(scalar))],
             dtype=self.dtype(scalar),
@@ -192,7 +195,7 @@ class Disk(Source):
     def kernel_name(self) -> str:
         return "disk"
 
-    def dtype(self, scalar: np.dtype) -> np.dtype:
+    def dtype(self, scalar: DTypeLike) -> np.dtype:
         return np.dtype(
             [
                 ("position", Vector.dtype(scalar)),
@@ -202,7 +205,7 @@ class Disk(Source):
             ]
         )
 
-    def as_record(self, scalar: np.dtype) -> np.rec.array:
+    def as_record(self, scalar: DTypeLike) -> np.rec.array:
         return np.rec.array(
             [
                 (
@@ -257,21 +260,18 @@ def monte_carlo(
     phi_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
     photon_counter = cu.zeros((nthread, ndet, ntof), np.uint64)
 
-    states = np.stack([s.as_record(np.float32) for s in states])
-    detectors = np.stack([d.as_record(np.float32) for d in detectors])
-
     args = (
         cu.asarray(spec.as_record(np.float32).view(np.uint32)),
         cu.asarray(source.as_record(np.float32).view(np.uint32)),
         np.uint32(nmedia),
-        cu.asarray(states.view(np.uint32)),
+        cu.asarray(np.stack([s.as_record(np.float32) for s in states]).view(np.uint32)),
         np.uint32(media.shape[0]),
         np.uint32(media.shape[1]),
         np.uint32(media.shape[2]),
         cu.asarray(media),
         cu.asarray(rng_states),
         np.uint32(ndet),
-        cu.asarray(detectors.view(np.uint32)),
+        cu.asarray(np.stack([d.as_record(np.float32) for d in detectors]).view(np.uint32)),
         fluence,
         phi_td,
         phi_phase,
