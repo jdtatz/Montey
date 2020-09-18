@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="montey",
-    version="0.0.1",
+    version="0.0.2",
     author="Julia Tatz",
     author_email="tatz.j@northeastern.edu",
     url="https://github.com/jdtatz/Montey/",

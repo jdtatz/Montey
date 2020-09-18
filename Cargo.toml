@@ -21,3 +21,10 @@ nvptx-sys = { git = "https://github.com/jdtatz/nvptx-sys.git", features = ["pani
 libm = "0.2"
 approx = "0.3"
 statrs = "0.13"
+
+[profile.release]
+opt-level=3
+lto=true
+
+[profile.release.build-override]
+opt-level=0

@@ -302,7 +302,7 @@ def monte_carlo(
                 ["detector", "time"],
                 photon_counter.sum(axis=0, dtype=np.uint64),
             ),
-            "PhiTD": (
+            "Phi": (
                 ["detector", "time"],
                 phi_td.sum(axis=0, dtype=np.float64) / pcount,
                 {"long_name": "Φ"},
@@ -325,7 +325,6 @@ def monte_carlo(
             "time": (
                 ["time"],
                 (np.arange(ntof) + 0.5) * spec.dt,
-                {"units": ureg.second},
             ),
         },
     )

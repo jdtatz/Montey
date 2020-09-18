@@ -27,11 +27,14 @@ args = [
     "-Z", "build-std=core,alloc",
     "-Z", "features=all",
     "--",
+#    "-Cllvm-args=--nvptx-sched4reg",
+#    "-Cllvm-args=--instcombine-code-sinking=false",
+#    "-Cllvm-args=--instcombine-negator-enabled=true",
     "-Csave-temps",
-    "--emit=asm=montey/kernel.ptx",
+    "--emit=asm=montey/kernel.ptx,llvm-ir=kernel.ll",
     "-Cdebuginfo=0",
     "-Copt-level=3",
-    "-Ccodegen-units=1",
+#    "-Ccodegen-units=1",
     "-Clto",
     "-Cembed-bitcode=yes",
     "-Ctarget-cpu=sm_52",
@@ -39,6 +42,7 @@ args = [
     "-Clinker=echo",
     "-Z", "no-link",
     "-Z", "mir-opt-level=3",
+    "-Z", "combine_cgu",
 ]
 
 [tasks.fix-kernel]

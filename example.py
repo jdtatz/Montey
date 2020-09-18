@@ -49,13 +49,13 @@ fig.tight_layout()
 fig.savefig("photons.png", dpi=300)
 
 # Plot Phi Time Domain
-print('phi_td', np.nansum(res["PhiTD"], axis=1))
-print('phi_td', np.nansum(res["PhiTD"]))
+print('phi_td', np.nansum(res["Phi"], axis=1))
+print('phi_td', np.nansum(res["Phi"]))
 fig, axs = plt.subplots(1, ndet, sharey='all')
-for (ax, td) in zip(axs, res["PhiTD"]):
+for (ax, td) in zip(axs, res["Phi"]):
     ax.semilogy(td, '*--')
 fig.tight_layout()
-fig.savefig("phitd.png", dpi=300)
+fig.savefig("phi.png", dpi=300)
 
 # Plot Phi Distr
 print('phi_dist', np.nansum(res["PhiDist"], axis=(1, 2)))
@@ -73,7 +73,7 @@ fig.tight_layout()
 fig.savefig("phase.png", dpi=300)
 
 # Plot Fd
-fd = np.exp(1j * res["PhiPhase"]) * res["PhiTD"].sum(axis=1)
+fd = np.exp(1j * res["PhiPhase"]) * res["Phi"].sum(axis=1)
 print(res["PhiPhase"])
 fig, (ax1, ax2) = plt.subplots(2)
 ax1.plot(fd.real)
