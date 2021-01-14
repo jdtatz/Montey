@@ -258,6 +258,7 @@ def monte_carlo(
     phi_td = cu.zeros((nthread, ndet, ntof), np.float32)
     phi_phase = cu.zeros((nthread, ndet), np.float32)
     phi_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
+    mom_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
     photon_counter = cu.zeros((nthread, ndet, ntof), np.uint64)
 
     args = (
@@ -276,6 +277,7 @@ def monte_carlo(
         phi_td,
         phi_phase,
         phi_dist,
+        mom_dist,
         photon_counter,
     )
 
@@ -286,7 +288,7 @@ def monte_carlo(
         args=args,
         block=(nwarp * 32, 1, 1),
         grid=(nblock, 1),
-        shared_mem=nwarp * 32 * nmedia * 4,
+        shared_mem=nwarp * 32 * 2 * nmedia * 4,
     )
     end_event = cu.cuda.Event(block=True)
     end_event.record()
@@ -318,6 +320,12 @@ def monte_carlo(
                 phi_dist.sum(axis=0, dtype=np.float64)
                 / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
                 {"long_name": "Φ Distribution"},
+            ),
+            "MomDist": (
+                ["detector", "time", "layer"],
+                mom_dist.sum(axis=0, dtype=np.float64)
+                / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
+                {"long_name": "Φ-Weighted Momentum Transfer Distribution"},
             ),
             "Fluence": (["x", "y", "z", "time"], fluence),
         },

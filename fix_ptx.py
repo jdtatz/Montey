@@ -5,12 +5,12 @@ from fileinput import input
 def fix(ptx_lines):
     ptx_lines = iter(ptx_lines)
     # Unnecessary after llvm 11 due to my patch being accepted
-    for line in ptx_lines:
-        if line.startswith("//") or line == "\n":
-            yield line
-        elif line.startswith(".version"):
-            yield line
-            break
+    # for line in ptx_lines:
+    #     if line.startswith("//") or line == "\n":
+    #         yield line
+    #     elif line.startswith(".version"):
+    #         yield line
+    #         break
     for line in ptx_lines:
         yield line.replace("div.rn.f32", "div.approx.ftz.f32")
 

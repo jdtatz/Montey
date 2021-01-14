@@ -214,8 +214,9 @@ pub fn monte_carlo<S: Source + ?Sized>(
     phi_td: &mut [f32],
     phi_phase: &mut [f32],
     phi_dist: &mut [f32],
+    mom_dist: &mut [f32],
     photon_counter: &mut [u64],
-    layer_opl: &mut [f32],
+    layer_opl_mom: &mut [[f32; 2]],
 ) {
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
     // let ndet = detectors.len();
@@ -244,8 +245,8 @@ pub fn monte_carlo<S: Source + ?Sized>(
         let mut t = 0f32;
         let mut media_id = *safe_index(media, index_3d(idx, media_dim) as usize);
         let mut state = safe_index(states, media_id as usize);
-        for opl_j in layer_opl.iter_mut() {
-            *opl_j = 0f32;
+        for opl_mom_j in layer_opl_mom.iter_mut() {
+            *opl_mom_j = [0f32; 2];
         }
         let mut ln_phi = 0f32;
         let mut opl = 0f32;
@@ -261,7 +262,8 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 t += dist * state.n / spec.lightspeed;
                 s -= dist;
                 if media_id > 0 {
-                    *safe_index_mut(layer_opl, (media_id - 1) as usize) += dist * state.n;
+                    *(&mut safe_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) +=
+                        dist * state.n;
                     ln_phi -= dist * state.mua;
                     opl += dist * state.n;
                 }
@@ -291,7 +293,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
             if media_id == 0 || t >= spec.lifetime_max {
                 break 'photon;
             }
-            *safe_index_mut(layer_opl, (media_id - 1) as usize) += s * state.n;
+            *(&mut safe_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) += s * state.n;
             ln_phi -= s * state.mua;
             opl += s * state.n;
             // absorb
@@ -326,6 +328,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
             }
 
             weight -= delta_weight;
+            // Scatter
             let rand: f32 = rng.gen();
             let ct = henyey_greenstein_phase(state.g, rand);
             let st = (1f32 - sqr(ct)).sqrt();
@@ -347,6 +350,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
                     z: ct * (1f32).copysign(v.z),
                 });
             }
+            *(&mut safe_index_mut(layer_opl_mom, (media_id - 1) as usize)[1]) += 1f32 - ct;
             // roulette
             const ROULETTE_THRESHOLD: f32 = 1e-4f32;
             const ROULETTE_CONSTANT: f32 = 10f32;
@@ -369,9 +373,10 @@ pub fn monte_carlo<S: Source + ?Sized>(
                 *safe_index_mut(phi_td, time_id + ntof * i) += phi;
                 *safe_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
                 *safe_index_mut(photon_counter, time_id + ntof * i) += 1;
-                for (j, opl_j) in layer_opl.iter().enumerate() {
+                for (j, [opl_j, mom_j]) in layer_opl_mom.iter().enumerate() {
                     let distr = phi * opl_j / opl;
                     *safe_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += distr;
+                    *safe_index_mut(mom_dist, j + nmedia * (time_id + ntof * i)) += phi * mom_j;
                 }
                 break 'detphoton;
             }

@@ -35,6 +35,7 @@ unsafe fn kernel<S: Source + ?Sized>(
     phi_td: *mut f32,
     phi_phase: *mut f32,
     phi_dist: *mut f32,
+    mom_dist: *mut f32,
     photon_counter: *mut u64,
 ) {
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
@@ -54,12 +55,14 @@ unsafe fn kernel<S: Source + ?Sized>(
     let len = (ndet * ntof * nmedia) as usize;
     let phi_dist =
         core::slice::from_raw_parts_mut(phi_dist.add((gid * len) as usize), len as usize);
+    let mom_dist =
+        core::slice::from_raw_parts_mut(mom_dist.add((gid * len) as usize), len as usize);
     let len = (ndet * ntof) as usize;
     let photon_counter =
         core::slice::from_raw_parts_mut(photon_counter.add((gid * len) as usize), len as usize);
     let (dyn_mem, dyn_mem_size) = nvptx_sys::dynamic_shared_memory();
     let idx = threadIdx::x() * (nmedia as usize);
-    if idx * (nmedia as usize) * core::mem::size_of::<f32>() >= dyn_mem_size {
+    if idx * (nmedia as usize) * core::mem::size_of::<[f32; 2]>() >= dyn_mem_size {
         #[cfg(not(debug_assertions))]
         core::hint::unreachable_unchecked();
         #[cfg(debug_assertions)]
@@ -73,7 +76,8 @@ unsafe fn kernel<S: Source + ?Sized>(
             );
         }
     }
-    let shared = core::slice::from_raw_parts_mut((dyn_mem as *mut f32).add(idx), nmedia as usize);
+    let shared =
+        core::slice::from_raw_parts_mut((dyn_mem as *mut [f32; 2]).add(idx), nmedia as usize);
 
     monte_carlo(
         spec,
@@ -87,6 +91,7 @@ unsafe fn kernel<S: Source + ?Sized>(
         phi_td,
         phi_phase,
         phi_dist,
+        mom_dist,
         photon_counter,
         shared,
     )
@@ -112,6 +117,7 @@ macro_rules! create_kernel {
             phi_td: *mut f32,
             phi_phase: *mut f32,
             phi_dist: *mut f32,
+            mom_dist: *mut f32,
             photon_counter: *mut u64,
         ) {
             kernel(
@@ -130,6 +136,7 @@ macro_rules! create_kernel {
                 phi_td,
                 phi_phase,
                 phi_dist,
+                mom_dist,
                 photon_counter,
             )
         }
@@ -153,6 +160,7 @@ macro_rules! create_kernel {
             phi_td: *mut f32,
             phi_phase: *mut f32,
             phi_dist: *mut f32,
+            mom_dist: *mut f32,
             photon_counter: *mut u64,
         ) {
             kernel(
@@ -171,6 +179,7 @@ macro_rules! create_kernel {
                 phi_td,
                 phi_phase,
                 phi_dist,
+                mom_dist,
                 photon_counter,
             )
         }
