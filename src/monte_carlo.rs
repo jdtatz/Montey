@@ -68,6 +68,26 @@ fn henyey_greenstein_phase(g: f32, rand: f32) -> f32 {
     }
 }
 
+fn photon_scatter(v: &Vector<f32>, ct: f32, st: f32, cp: f32, sp: f32) -> UnitVector<f32> {
+    const EPS_N_1: f32 = 1f32 - 1e-6f32;
+    if v.z.abs() < EPS_N_1 {
+        let d = 1f32 - sqr(v.z);
+        let denom = d.sqrt();
+        let rdenom = d.rsqrt();
+        UnitVector(Vector {
+            x: st * (v.x * v.z * cp - v.y * sp) * rdenom + v.x * ct,
+            y: st * (v.y * v.z * cp + v.x * sp) * rdenom + v.y * ct,
+            z: -denom * st * cp + v.z * ct,
+        })
+    } else {
+        UnitVector(Vector {
+            x: st * cp,
+            y: st * sp * (1f32).copysign(v.z),
+            z: ct * (1f32).copysign(v.z),
+        })
+    }
+}
+
 fn index_step(
     idx: &mut Vector<u32>,
     v: UnitVector<f32>,
@@ -146,8 +166,16 @@ fn index_3d(index: Vector<u32>, dim: Vector<u32>) -> u32 {
     index.z + dim.z * (index.y + dim.y * index.x)
 }
 
-fn index_4d(index: [u32; 4], dim: [u32; 4]) -> u32 {
-    index[3] + dim[3] * (index[2] + dim[2] * (index[1] + dim[1] * index[0]))
+fn index_3d_time(index: Vector<u32>, time_index: u32, dim: Vector<u32>, time_dim: u32) -> u32 {
+    time_index + time_dim * (index.z + dim.z * (index.y + dim.y * index.x))
+}
+
+fn pos2idx(pos: &Vector<f32>, voxel_dim: &Vector<f32>) -> Vector<u32> {
+    Vector {
+        x: (pos.x / voxel_dim.x).floor() as u32,
+        y: (pos.y / voxel_dim.y).floor() as u32,
+        z: (pos.z / voxel_dim.z).floor() as u32,
+    }
 }
 
 #[track_caller]
@@ -221,12 +249,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
     // let ndet = detectors.len();
     let nmedia = states.len() - 1;
-    let fluence_dim = [media_dim.x, media_dim.y, media_dim.z, ntof];
-    let media_size = Vector {
-        x: spec.voxel_dim.x * (media_dim.x as f32),
-        y: spec.voxel_dim.y * (media_dim.y as f32),
-        z: spec.voxel_dim.z * (media_dim.z as f32),
-    };
+    let media_size = spec.voxel_dim.hammard_product(media_dim.into());
     const PI_2: f32 = 2f32 * core::f32::consts::PI;
     // TODO better name
     let omega_wavelength = PI_2 * spec.freq / spec.lightspeed;
@@ -236,11 +259,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
         debug_assert!(0f32 <= p.x && p.x < media_size.x);
         debug_assert!(0f32 <= p.y && p.y < media_size.y);
         debug_assert!(0f32 <= p.z && p.z < media_size.z);
-        let mut idx = Vector {
-            x: (p.x / spec.voxel_dim.x).floor() as u32,
-            y: (p.y / spec.voxel_dim.y).floor() as u32,
-            z: (p.z / spec.voxel_dim.z).floor() as u32,
-        };
+        let mut idx = pos2idx(&p, &spec.voxel_dim);
         let mut weight = 1f32;
         let mut t = 0f32;
         let mut media_id = *safe_index(media, index_3d(idx, media_dim) as usize);
@@ -298,33 +317,15 @@ pub fn monte_carlo<S: Source + ?Sized>(
             opl += s * state.n;
             // absorb
             let delta_weight = weight * state.mua / mu_t;
+            let fidx = index_3d_time(idx, (ntof - 1).min((t / spec.dt).floor() as u32), media_dim, ntof);
             #[cfg(target_arch = "nvptx64")]
             unsafe {
-                let ptr = fluence.as_mut_ptr().add(index_4d(
-                    [
-                        idx.x,
-                        idx.y,
-                        idx.z,
-                        (ntof - 1).min((t / spec.dt).floor() as u32),
-                    ],
-                    fluence_dim,
-                ) as usize);
+                let ptr = fluence.as_mut_ptr().add(fidx as usize);
                 nvptx_sys::atomic_load_add_f32(ptr, delta_weight);
             }
             #[cfg(not(target_arch = "nvptx64"))]
             {
-                *safe_index_mut(
-                    fluence,
-                    index_4d(
-                        [
-                            idx.x,
-                            idx.y,
-                            idx.z,
-                            (ntof - 1).min((t / spec.dt).floor() as u32),
-                        ],
-                        fluence_dim,
-                    ) as usize,
-                ) += delta_weight;
+                *safe_index_mut(fluence, fidx as usize) += delta_weight;
             }
 
             weight -= delta_weight;
@@ -333,23 +334,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
             let ct = henyey_greenstein_phase(state.g, rand);
             let st = (1f32 - sqr(ct)).sqrt();
             let [cp, sp]: [f32; 2] = UnitCircle.sample(&mut rng);
-            const EPS_N_1: f32 = 1f32 - 1e-6f32;
-            if v.z.abs() < EPS_N_1 {
-                let d = 1f32 - sqr(v.z);
-                let denom = d.sqrt();
-                let rdenom = d.rsqrt();
-                v = UnitVector(Vector {
-                    x: st * (v.x * v.z * cp - v.y * sp) * rdenom + v.x * ct,
-                    y: st * (v.y * v.z * cp + v.x * sp) * rdenom + v.y * ct,
-                    z: -denom * st * cp + v.z * ct,
-                });
-            } else {
-                v = UnitVector(Vector {
-                    x: st * cp,
-                    y: st * sp * (1f32).copysign(v.z),
-                    z: ct * (1f32).copysign(v.z),
-                });
-            }
+            v = photon_scatter(&v, ct, st, cp, sp);
             *(&mut safe_index_mut(layer_opl_mom, (media_id - 1) as usize)[1]) += 1f32 - ct;
             // roulette
             const ROULETTE_THRESHOLD: f32 = 1e-4f32;
