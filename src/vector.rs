@@ -1,5 +1,6 @@
 #[cfg(target_arch = "nvptx64")]
 use nvptx_sys::Float;
+use num_traits::{NumCast, cast, AsPrimitive};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div)]
@@ -15,7 +16,9 @@ impl<T> Vector<T> {
     }
 }
 
-impl Vector<f32> {
+impl<T> Vector<T>
+    where T: Copy + core::ops::Add<Output=T> + core::ops::Sub<Output=T> + core::ops::Mul<Output=T>
+{
     pub fn hammard_product(self, rhs: Self) -> Self {
         Self {
             x: self.x * rhs.x,
@@ -24,21 +27,12 @@ impl Vector<f32> {
         }
     }
 
-    pub fn dot(self, rhs: Self) -> f32 {
+    pub fn dot(self, rhs: Self) -> T {
         self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
 
-    pub fn norm_sqr(self) -> f32 {
+    pub fn norm_sqr(self) -> T {
         self.dot(self)
-    }
-
-    /// self * b + c
-    pub fn mul_add(self, b: f32, c: Self) -> Self {
-        Self {
-            x: self.x.mul_add(b, c.x),
-            y: self.y.mul_add(b, c.y),
-            z: self.z.mul_add(b, c.z),
-        }
     }
 
     pub fn cross(self, rhs: Self) -> Self {
@@ -50,13 +44,29 @@ impl Vector<f32> {
     }
 }
 
-impl From<Vector<u32>> for Vector<f32> {
-    fn from(v: Vector<u32>) -> Self {
-        Vector {
-            x: v.x as f32,
-            y: v.y as f32,
-            z: v.z as f32,
+
+impl Vector<f32> {
+    /// self * b + c
+    pub fn mul_add(self, b: f32, c: Self) -> Self {
+        Self {
+            x: self.x.mul_add(b, c.x),
+            y: self.y.mul_add(b, c.y),
+            z: self.z.mul_add(b, c.z),
         }
+    }
+}
+
+impl<T: 'static + Copy> Vector<T> {
+    pub fn as_<U: 'static + Copy>(self) -> Vector<U>
+        where T: AsPrimitive<U>
+     {
+        Vector::new(self.x.as_(), self.y.as_(), self.z.as_())
+    }
+}
+
+impl<T: NumCast> Vector<T> {
+    pub fn cast<U: NumCast>(self) -> Option<Vector<U>> {
+        Some(Vector::new(cast(self.x)?, cast(self.y)?, cast(self.z)?))
     }
 }
 

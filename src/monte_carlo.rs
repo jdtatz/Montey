@@ -249,7 +249,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
     // let ndet = detectors.len();
     let nmedia = states.len() - 1;
-    let media_size = spec.voxel_dim.hammard_product(media_dim.into());
+    let media_size = spec.voxel_dim.hammard_product(media_dim.as_());
     const PI_2: f32 = 2f32 * core::f32::consts::PI;
     // TODO better name
     let omega_wavelength = PI_2 * spec.freq / spec.lightspeed;
@@ -274,7 +274,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
             let rand: f32 = rng.gen();
             let mut mu_t = (state.mua + state.mus).max(1e-12f32);
             let mut s = -rand.ln() / mu_t;
-            let voxel_pos = p - spec.voxel_dim.hammard_product(idx.into());
+            let voxel_pos = p - spec.voxel_dim.hammard_product(idx.as_());
             let (mut dist, mut boundary) = intersection(None, voxel_pos, v, spec.voxel_dim);
             while s > dist {
                 p = (*v).mul_add(dist, p);
@@ -302,7 +302,7 @@ pub fn monte_carlo<S: Source + ?Sized>(
                     let prev_mu_t = core::mem::replace(&mut mu_t, state.mua + state.mus);
                     s *= prev_mu_t / mu_t;
                 }
-                let voxel_pos = p - spec.voxel_dim.hammard_product(idx.into());
+                let voxel_pos = p - spec.voxel_dim.hammard_product(idx.as_());
                 let r = intersection(boundary, voxel_pos, v, spec.voxel_dim);
                 dist = r.0;
                 boundary = r.1;
