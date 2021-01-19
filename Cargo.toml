@@ -23,6 +23,11 @@ libm = "0.2"
 [dev-dependencies]
 approx = "0.4"
 statrs = "0.13"
+ndarray = "0.14"
+ndarray-npy = "0.7"
+
+[profile.dev]
+opt-level = 2
 
 [profile.release]
 opt-level=3

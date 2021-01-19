@@ -368,3 +368,113 @@ pub fn monte_carlo<S: Source + ?Sized>(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::convert::TryInto;
+    use rand::SeedableRng;
+    use crate::PencilSource;
+    use super::*;
+    use ndarray::Array;
+
+    #[test]
+    fn two_layer() {
+        let spec = MonteCarloSpecification {
+            nphoton: 100_000,
+            voxel_dim: Vector::new(1.0, 1.0, 1.0),
+            lifetime_max: 5000.0,
+            dt: 100.0,
+            lightspeed: 0.2998,
+            freq: 110e-6,
+        };
+        let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
+        let src = PencilSource {
+            src_pos: Vector::new(0.0, 100.0, 100.0),
+            src_dir: UnitVector::new(Vector::new(1.0, 0.0, 0.0)).unwrap(),
+        };
+        let states = [
+            State {
+                mua: 0.0,
+                mus: 0.0,
+                g: 1.0,
+                n: 1.4,
+            },
+            State {
+                mua: 3e-2,
+                mus: 10.0,
+                g: 0.9,
+                n: 1.4,
+            },
+            State {
+                mua: 2e-2,
+                mus: 12.0,
+                g: 0.9,
+                n: 1.4,
+            },
+        ];
+        let nlayer = states.len() as u32 - 1;
+        let dets = [
+            Detector {
+                position: src.src_pos.clone(),
+                radius: 10.0,
+            },
+            Detector {
+                position: src.src_pos.clone(),
+                radius: 20.0,
+            },
+            Detector {
+                position: src.src_pos.clone(),
+                radius: 30.0,
+            },
+        ];
+        let ndet = dets.len() as u32;
+        let media_dim = Vector::new(200u32, 200, 200);
+        let mut media = vec![1u8; (media_dim.x * media_dim.y * media_dim.z).try_into().unwrap()];
+        let depth = 6u32;
+        for v in media[((depth * media_dim.y * media_dim.z) as usize)..].iter_mut() {
+            *v = 2u8;
+        }
+        let mut fluence = Array::zeros(
+            (media_dim.x as usize, media_dim.y as usize, media_dim.z as usize, ntof as usize)
+        );
+        let mut phi_td  = Array::zeros(
+            (ndet as usize, ntof as usize)
+        );
+        let mut phi_phase= Array::zeros(
+            ndet as usize
+        );
+        let mut phi_dist= Array::zeros(
+            (ndet as usize, ntof as usize, nlayer as usize)
+        );
+        let mut mom_dist= Array::zeros(
+            (ndet as usize, ntof as usize, nlayer as usize)
+        );
+        let mut photon_counter= Array::zeros(
+            (ndet as usize, ntof as usize)
+        );
+        let mut layer_opl_mom = vec![[0f32; 2]; nlayer as usize];
+        monte_carlo(
+            &spec,
+            &src,
+            &states,
+            media_dim,
+            &media,
+            PRng::seed_from_u64(123456u64),
+            &dets,
+            fluence.as_slice_mut().unwrap(),
+            phi_td.as_slice_mut().unwrap(),
+            phi_phase.as_slice_mut().unwrap(),
+            phi_dist.as_slice_mut().unwrap(),
+            mom_dist.as_slice_mut().unwrap(),
+            photon_counter.as_slice_mut().unwrap(),
+            &mut layer_opl_mom,
+        );
+        let mut npz = ndarray_npy::NpzWriter::new_compressed(std::io::BufWriter::new(std::fs::File::create("test.npz").unwrap()));
+        npz.add_array("fluence", &fluence).unwrap();
+        npz.add_array("phi_td", &phi_td).unwrap();
+        npz.add_array("phi_phase", &phi_phase).unwrap();
+        npz.add_array("phi_dist", &phi_dist).unwrap();
+        npz.add_array("mom_dist", &mom_dist).unwrap();
+        npz.add_array("photon_counter", &photon_counter).unwrap();
+    }
+}
