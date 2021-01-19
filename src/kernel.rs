@@ -12,6 +12,8 @@ mod vector;
 pub use crate::vector::{UnitVector, Vector};
 mod sources;
 pub use crate::sources::{DiskSource, PencilSource, Source};
+mod geometry;
+pub use crate::geometry::{Geometry, VoxelGeometry, AxialSymetricGeometry};
 mod monte_carlo;
 pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
 
@@ -19,15 +21,13 @@ pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, Sta
 use nvptx_sys::{blockDim, blockIdx, threadIdx, Float};
 
 #[cfg(target_arch = "nvptx64")]
-unsafe fn kernel<S: Source + ?Sized>(
+unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
     spec: &MonteCarloSpecification,
     src: &S,
     nmedia: u32,
     states: *const State,
-    nx: u32,
-    ny: u32,
-    nz: u32,
     media: *const u8,
+    geom: &G,
     rngs: *const [u64; 2],
     ndet: u32,
     detectors: *const Detector,
@@ -38,13 +38,12 @@ unsafe fn kernel<S: Source + ?Sized>(
     mom_dist: *mut f32,
     photon_counter: *mut u64,
 ) {
+    let media_size = geom.media_size();
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
-
     let states = core::slice::from_raw_parts(states, (nmedia + 1) as usize);
-    let media_dim = Vector::new(nx, ny, nz);
-    let media = core::slice::from_raw_parts(media, (nx * ny * nz) as usize);
+    let media = core::slice::from_raw_parts(media, media_size as usize);
     let detectors = core::slice::from_raw_parts(detectors, ndet as usize);
-    let fluence = core::slice::from_raw_parts_mut(fluence, (nx * ny * nz * ntof) as usize);
+    let fluence = core::slice::from_raw_parts_mut(fluence, media_size * (ntof as usize));
 
     let gid = threadIdx::x() + blockIdx::x() * blockDim::x();
     let rng = core::mem::transmute(rngs.add(gid as usize).read());
@@ -83,8 +82,8 @@ unsafe fn kernel<S: Source + ?Sized>(
         spec,
         src,
         states,
-        media_dim,
         media,
+        geom,
         rng,
         detectors,
         fluence,
@@ -106,10 +105,8 @@ macro_rules! create_kernel {
             source: &$src,
             nmedia: u32,
             states: *const State,
-            nx: u32,
-            ny: u32,
-            nz: u32,
             media: *const u8,
+            geom: &VoxelGeometry,
             rngs: *const [u64; 2],
             ndet: u32,
             detectors: *const Detector,
@@ -125,10 +122,8 @@ macro_rules! create_kernel {
                 source,
                 nmedia,
                 states,
-                nx,
-                ny,
-                nz,
                 media,
+                geom,
                 rngs,
                 ndet,
                 detectors,
@@ -149,10 +144,8 @@ macro_rules! create_kernel {
             sources: *const $src,
             nmedia: u32,
             states: *const State,
-            nx: u32,
-            ny: u32,
-            nz: u32,
             media: *const u8,
+            geom: &VoxelGeometry,
             rngs: *const [u64; 2],
             ndet: u32,
             detectors: *const Detector,
@@ -168,10 +161,8 @@ macro_rules! create_kernel {
                 core::slice::from_raw_parts(sources, nsources as usize),
                 nmedia,
                 states,
-                nx,
-                ny,
-                nz,
                 media,
+                geom,
                 rngs,
                 ndet,
                 detectors,

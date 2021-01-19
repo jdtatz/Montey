@@ -97,7 +97,6 @@ class Detector:
 @dataclass
 class Specification:
     nphoton: int
-    voxel_dim: Tuple[Real, Real, Real]
     lifetime_max: Real
     dt: Real
     lightspeed: Real
@@ -108,7 +107,6 @@ class Specification:
         return np.dtype(
             [
                 ("nphoton", np.uint32),
-                ("voxel_dim", Vector.dtype(scalar)),
                 ("lifetime_max", scalar),
                 ("dt", scalar),
                 ("lightspeed", scalar),
@@ -117,9 +115,8 @@ class Specification:
         )
 
     def as_record(self, scalar: DTypeLike) -> np.recarray:
-        d = Vector(*self.voxel_dim).as_record(scalar)
         return np.rec.array(
-            [(self.nphoton, d, self.lifetime_max, self.dt, self.lightspeed, self.freq)],
+            [(self.nphoton, self.lifetime_max, self.dt, self.lightspeed, self.freq)],
             dtype=self.dtype(scalar),
         )
 
@@ -222,6 +219,29 @@ class Disk(Source):
         )
 
 
+@dataclass
+class VoxelGeometry:
+    voxel_dim: Tuple[Real, Real, Real]
+    media_dim: Tuple[int, int, int]
+
+    @staticmethod
+    def dtype(scalar: DTypeLike) -> np.dtype:
+        return np.dtype(
+            [
+                ("voxel_dim", Vector.dtype(scalar)),
+                ("media_dim", Vector.dtype(np.uint32)),
+            ]
+        )
+
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
+        vd = Vector(*self.voxel_dim).as_record(scalar)
+        md = Vector(*self.media_dim).as_record(np.uint32)
+        return np.rec.array(
+            [(vd, md)],
+            dtype=self.dtype(scalar),
+        )
+
+
 @cu.memoize(for_each_device=True)
 def load_module():
     with path(__package__, "kernel.ptx") as kernel_ptx_path:
@@ -238,6 +258,7 @@ def monte_carlo(
     source: Source,
     states: Sequence[State],
     detectors: Sequence[Detector],
+    voxel_dim: Vector[int, int, int],
     media: np.uint8[:, :, ::1],
     seed: int = 12345,
     nwarp: int = 4,
@@ -248,6 +269,8 @@ def monte_carlo(
         ureg = get_application_registry()
     nthread = nblock * nwarp * 32
     pcount = nthread * spec.nphoton
+
+    geom = VoxelGeometry(voxel_dim, media_dim=media.shape)
 
     rng_states = create_xoroshiro128p_states(nthread, seed)
 
@@ -266,10 +289,8 @@ def monte_carlo(
         cu.asarray(source.as_record(np.float32).view(np.uint32)),
         np.uint32(nmedia),
         cu.asarray(np.stack([s.as_record(np.float32) for s in states]).view(np.uint32)),
-        np.uint32(media.shape[0]),
-        np.uint32(media.shape[1]),
-        np.uint32(media.shape[2]),
         cu.asarray(media),
+        cu.asarray(geom.as_record(np.float32).view(np.uint32)),
         cu.asarray(rng_states),
         np.uint32(ndet),
         cu.asarray(np.stack([d.as_record(np.float32) for d in detectors]).view(np.uint32)),
