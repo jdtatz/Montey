@@ -1,13 +1,22 @@
 use crate::random::UnitDisc;
+use crate::utils::*;
 use crate::{PRng, UnitVector, Vector};
-#[cfg(target_arch = "nvptx64")]
-use nvptx_sys::Float;
 use rand::prelude::Distribution;
 use rand::Rng;
 
 pub trait Source {
     fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result;
     fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>);
+}
+
+impl<S: Source> Source for &S {
+    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result {
+        S::write_name(f)
+    }
+
+    fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) {
+        S::launch(*self, rng)
+    }
 }
 
 impl<S: Source> Source for [S] {

@@ -18,6 +18,16 @@ DTypeLike = Union[np.dtype, None, Type[ArrayScalar]]
 T = TypeVar("T", bound=Real)
 
 
+class CudaCompat(ABC):
+    @abstractmethod
+    def dtype(self, scalar: DTypeLike) -> np.dtype:
+        raise NotImplementedError
+
+    @abstractmethod
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
+        raise NotImplementedError
+
+
 @dataclass
 class Vector(Generic[T]):
     x: T
@@ -134,6 +144,8 @@ class Source(ABC):
     def as_record(self, scalar: DTypeLike) -> np.recarray:
         raise NotImplementedError
 
+    def extra_args(self) -> Sequence[np.scalar]:
+        return ()
 
 S = TypeVar("S", bound=Source)
 
@@ -157,6 +169,9 @@ class SourceArray(Source, Generic[S]):
 
     def as_record(self, scalar: DTypeLike) -> np.recarray:
         return np.stack([src.as_record(scalar) for src in self.sources]).view(np.recarray)
+
+    def extra_args(self) -> Sequence[np.scalar]:
+        return np.uint32(len(self.sources)),
 
 
 @dataclass
@@ -219,10 +234,33 @@ class Disk(Source):
         )
 
 
+class Geometry(ABC):
+    @abstractmethod
+    def kernel_prefix(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def fluence_dim(self, time_dim: int) -> Seq[Tuple[str, int]]:
+        raise NotImplementedError
+
+    def extra_args(self) -> Sequence[np.scalar]:
+        return ()
+
+    def fat_size(self) -> Optional[int]:
+        return None
+
+
 @dataclass
-class VoxelGeometry:
+class VoxelGeometry(Geometry):
     voxel_dim: Tuple[Real, Real, Real]
     media_dim: Tuple[int, int, int]
+
+    @staticmethod
+    def kernel_prefix() -> str:
+        return ''
+
+    def fluence_dim(self, time_dim: int) -> Seq[Tuple[str, int]]:
+        return ("x", self.media_dim[0]), ("y", self.media_dim[1]), ("z", self.media_dim[2]), ("time", time_dim)
 
     @staticmethod
     def dtype(scalar: DTypeLike) -> np.dtype:
@@ -242,6 +280,38 @@ class VoxelGeometry:
         )
 
 
+G = TypeVar("G", bound=Geometry)
+
+
+@dataclass
+class LayeredGeometry(Geometry, Generic[G]):
+    inner: G
+    layers: Sequence[Real]
+
+    def kernel_prefix(self) -> str:
+        return f'layered_{self.inner.kernel_prefix()}'
+
+    def fluence_dim(self, time_dim: int) -> Seq[Tuple[str, int]]:
+        return self.inner.fluence_dim(time_dim)
+
+    def dtype(self, scalar: DTypeLike) -> np.dtype:
+        return np.dtype(
+            [
+                ("inner", self.inner.dtype(scalar)),
+                ("layers", (scalar, len(self.layers))),
+            ]
+        )
+
+    def as_record(self, scalar: DTypeLike) -> np.recarray:
+        return np.rec.array(
+            [(self.inner.as_record(scalar), tuple(self.layers))],
+            dtype=self.dtype(scalar),
+        )
+
+    def extra_args(self) -> Sequence[np.scalar]:
+        return np.uint32(len(self.layers)),
+
+
 @cu.memoize(for_each_device=True)
 def load_module():
     with path(__package__, "kernel.ptx") as kernel_ptx_path:
@@ -258,8 +328,8 @@ def monte_carlo(
     source: Source,
     states: Sequence[State],
     detectors: Sequence[Detector],
-    voxel_dim: Vector[int, int, int],
-    media: np.uint8[:, :, ::1],
+    geom: Geometry,
+    media: np.uint8[::1],
     seed: int = 12345,
     nwarp: int = 4,
     nblock: int = 512,
@@ -270,14 +340,13 @@ def monte_carlo(
     nthread = nblock * nwarp * 32
     pcount = nthread * spec.nphoton
 
-    geom = VoxelGeometry(voxel_dim, media_dim=media.shape)
-
     rng_states = create_xoroshiro128p_states(nthread, seed)
 
     ndet = len(detectors)
     ntof = int(np.ceil(spec.lifetime_max / spec.dt))
     nmedia = len(states) - 1
-    fluence = cu.zeros((*media.shape, ntof), np.float32)
+    fluence_keys, fluence_shape = zip(*geom.fluence_dim(ntof))
+    fluence = cu.zeros(fluence_shape, np.float32)
     phi_td = cu.zeros((nthread, ndet, ntof), np.float32)
     phi_phase = cu.zeros((nthread, ndet), np.float32)
     phi_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
@@ -287,10 +356,12 @@ def monte_carlo(
     args = (
         cu.asarray(spec.as_record(np.float32).view(np.uint32)),
         cu.asarray(source.as_record(np.float32).view(np.uint32)),
+        *source.extra_args(),
         np.uint32(nmedia),
         cu.asarray(np.stack([s.as_record(np.float32) for s in states]).view(np.uint32)),
         cu.asarray(media),
         cu.asarray(geom.as_record(np.float32).view(np.uint32)),
+        *geom.extra_args(),
         cu.asarray(rng_states),
         np.uint32(ndet),
         cu.asarray(np.stack([d.as_record(np.float32) for d in detectors]).view(np.uint32)),
@@ -302,7 +373,7 @@ def monte_carlo(
         photon_counter,
     )
 
-    kernel = load_kernel(source.kernel_name())
+    kernel = load_kernel(geom.kernel_prefix() + source.kernel_name())
     start_event = cu.cuda.Event()
     start_event.record()
     kernel(
@@ -348,7 +419,7 @@ def monte_carlo(
                 / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
                 {"long_name": "Φ-Weighted Momentum Transfer Distribution"},
             ),
-            "Fluence": (["x", "y", "z", "time"], fluence),
+            "Fluence": (list(fluence_keys), fluence),
         },
         coords={
             "time": (

@@ -1,6 +1,5 @@
-#[cfg(target_arch = "nvptx64")]
-use nvptx_sys::Float;
-use num_traits::{NumCast, cast, AsPrimitive};
+use crate::utils::Float;
+use num_traits::{cast, AsPrimitive, NumCast};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div)]
@@ -17,7 +16,8 @@ impl<T> Vector<T> {
 }
 
 impl<T> Vector<T>
-    where T: Copy + core::ops::Add<Output=T> + core::ops::Sub<Output=T> + core::ops::Mul<Output=T>
+where
+    T: Copy + core::ops::Add<Output = T> + core::ops::Sub<Output = T> + core::ops::Mul<Output = T>,
 {
     pub fn hammard_product(self, rhs: Self) -> Self {
         Self {
@@ -44,7 +44,6 @@ impl<T> Vector<T>
     }
 }
 
-
 impl Vector<f32> {
     /// self * b + c
     pub fn mul_add(self, b: f32, c: Self) -> Self {
@@ -58,8 +57,9 @@ impl Vector<f32> {
 
 impl<T: 'static + Copy> Vector<T> {
     pub fn as_<U: 'static + Copy>(self) -> Vector<U>
-        where T: AsPrimitive<U>
-     {
+    where
+        T: AsPrimitive<U>,
+    {
         Vector::new(self.x.as_(), self.y.as_(), self.z.as_())
     }
 }

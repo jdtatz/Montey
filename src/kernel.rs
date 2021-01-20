@@ -7,13 +7,14 @@ extern crate derive_more;
 // http://prng.di.unimi.it/
 
 mod random;
+mod utils;
 pub use crate::random::PRng;
 mod vector;
 pub use crate::vector::{UnitVector, Vector};
 mod sources;
 pub use crate::sources::{DiskSource, PencilSource, Source};
 mod geometry;
-pub use crate::geometry::{Geometry, VoxelGeometry, AxialSymetricGeometry};
+pub use crate::geometry::{Geometry, LayeredGeometry, VoxelGeometry};
 mod monte_carlo;
 pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
 
@@ -38,12 +39,11 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
     mom_dist: *mut f32,
     photon_counter: *mut u64,
 ) {
-    let media_size = geom.media_size();
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
     let states = core::slice::from_raw_parts(states, (nmedia + 1) as usize);
-    let media = core::slice::from_raw_parts(media, media_size as usize);
+    let media = core::slice::from_raw_parts(media, geom.media_size());
     let detectors = core::slice::from_raw_parts(detectors, ndet as usize);
-    let fluence = core::slice::from_raw_parts_mut(fluence, media_size * (ntof as usize));
+    let fluence = core::slice::from_raw_parts_mut(fluence, geom.fluence_size(ntof));
 
     let gid = threadIdx::x() + blockIdx::x() * blockDim::x();
     let rng = core::mem::transmute(rngs.add(gid as usize).read());
@@ -97,16 +97,16 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
 }
 
 macro_rules! create_kernel {
-    ($kname:ident $karname:ident $src:ty) => {
+    (@call $kname:ident ; $($src_args:ident : $src_ty:ty),+ ; $set_src:expr ; $($geom_args:ident : $geom_ty:ty),+ ; $set_geom:expr) => {
         #[cfg(target_arch = "nvptx64")]
         #[no_mangle]
         pub unsafe extern "ptx-kernel" fn $kname(
             spec: &MonteCarloSpecification,
-            source: &$src,
+            $($src_args : $src_ty),+,
             nmedia: u32,
             states: *const State,
             media: *const u8,
-            geom: &VoxelGeometry,
+            $($geom_args : $geom_ty),+,
             rngs: *const [u64; 2],
             ndet: u32,
             detectors: *const Detector,
@@ -117,6 +117,8 @@ macro_rules! create_kernel {
             mom_dist: *mut f32,
             photon_counter: *mut u64,
         ) {
+            let source = $set_src;
+            let geom = $set_geom;
             kernel(
                 spec,
                 source,
@@ -135,50 +137,17 @@ macro_rules! create_kernel {
                 photon_counter,
             )
         }
-
-        #[cfg(target_arch = "nvptx64")]
-        #[no_mangle]
-        pub unsafe extern "ptx-kernel" fn $karname(
-            spec: &MonteCarloSpecification,
-            nsources: u32,
-            sources: *const $src,
-            nmedia: u32,
-            states: *const State,
-            media: *const u8,
-            geom: &VoxelGeometry,
-            rngs: *const [u64; 2],
-            ndet: u32,
-            detectors: *const Detector,
-            fluence: *mut f32,
-            phi_td: *mut f32,
-            phi_phase: *mut f32,
-            phi_dist: *mut f32,
-            mom_dist: *mut f32,
-            photon_counter: *mut u64,
-        ) {
-            kernel(
-                spec,
-                core::slice::from_raw_parts(sources, nsources as usize),
-                nmedia,
-                states,
-                media,
-                geom,
-                rngs,
-                ndet,
-                detectors,
-                fluence,
-                phi_td,
-                phi_phase,
-                phi_dist,
-                mom_dist,
-                photon_counter,
-            )
-        }
+    };
+    ($kname:ident $layered_kname:ident $src:ty) => {
+        create_kernel!(@call $kname ; source: &$src ; source ; geom: &VoxelGeometry ; geom);
+        create_kernel!(@call $layered_kname ; source: &$src ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry>>([geom_ptr as usize, nlayer as usize]));
     };
 }
 
-create_kernel!(pencil pencil_array PencilSource);
-create_kernel!(disk disk_array DiskSource);
+create_kernel!(pencil layered_pencil PencilSource);
+// create_kernel!(pencil_array layered_pencil_array [PencilSource]);
+create_kernel!(disk layered_disk DiskSource);
+// create_kernel!(disk_array layered_disk_array [PencilSource]);
 
 #[cfg(not(target_arch = "nvptx64"))]
 fn main() {}

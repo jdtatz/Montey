@@ -1,16 +1,11 @@
-#[cfg(target_arch = "nvptx64")]
-use nvptx_sys::Float;
-#[cfg(not(target_arch = "nvptx64"))]
-use crate::random::Float;
-use crate::{Geometry, random::{PRng, UnitCircle}};
 use crate::sources::Source;
+use crate::utils::*;
 use crate::vector::{UnitVector, Vector};
-use core::slice::SliceIndex;
+use crate::{
+    random::{PRng, UnitCircle},
+    Geometry,
+};
 use rand::{prelude::Distribution, Rng};
-
-fn sqr(x: f32) -> f32 {
-    x * x
-}
 
 fn henyey_greenstein_phase(g: f32, rand: f32) -> f32 {
     if g != 0f32 {
@@ -67,58 +62,6 @@ pub struct Detector {
     pub radius: f32,
 }
 
-#[track_caller]
-fn safe_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Output {
-    if let Some(v) = slice.get(index) {
-        v
-    } else {
-        #[cfg(target_arch = "nvptx64")]
-        unsafe {
-            #[cfg(not(debug_assertions))]
-            core::hint::unreachable_unchecked();
-            #[cfg(debug_assertions)]
-            {
-                let loc = core::panic::Location::caller();
-                nvptx_sys::__assertfail(
-                    b"safe_index out of bounds\0".as_ptr(),
-                    loc.file().as_ptr(),
-                    loc.line(),
-                    b"\0".as_ptr(),
-                    1,
-                );
-            }
-        }
-        #[cfg(not(target_arch = "nvptx64"))]
-        unreachable!("safe_index out of bounds")
-    }
-}
-
-#[track_caller]
-fn safe_index_mut<T, I: SliceIndex<[T]>>(slice: &mut [T], index: I) -> &mut I::Output {
-    if let Some(v) = slice.get_mut(index) {
-        v
-    } else {
-        #[cfg(target_arch = "nvptx64")]
-        unsafe {
-            #[cfg(not(debug_assertions))]
-            core::hint::unreachable_unchecked();
-            #[cfg(debug_assertions)]
-            {
-                let loc = core::panic::Location::caller();
-                nvptx_sys::__assertfail(
-                    b"safe_index_mut out of bounds\0".as_ptr(),
-                    loc.file().as_ptr(),
-                    loc.line(),
-                    b"\0".as_ptr(),
-                    1,
-                );
-            }
-        }
-        #[cfg(not(target_arch = "nvptx64"))]
-        unreachable!("safe_index_mut out of bounds")
-    }
-}
-
 pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
     spec: &MonteCarloSpecification,
     src: &S,
@@ -147,7 +90,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
         let mut idx = geom.pos2idx(&p);
         let mut weight = 1f32;
         let mut t = 0f32;
-        let mut media_id = *safe_index(media, geom.index_3d(idx) as usize);
+        let mut media_id = *safe_index(media, geom.media_index(idx) as usize);
         let mut state = safe_index(states, media_id as usize);
         for opl_mom_j in layer_opl_mom.iter_mut() {
             *opl_mom_j = [0f32; 2];
@@ -176,7 +119,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 }
                 let prev_media_id = core::mem::replace(
                     &mut media_id,
-                    *safe_index(media, geom.index_3d(idx) as usize),
+                    *safe_index(media, geom.media_index(idx) as usize),
                 );
                 if media_id == 0 && prev_media_id != 0 {
                     break 'photon;
@@ -200,7 +143,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             opl += s * state.n;
             // absorb
             let delta_weight = weight * state.mua / mu_t;
-            let fidx = geom.index_4d(idx, (ntof - 1).min((t / spec.dt).floor() as u32), ntof);
+            let fidx = geom.fluence_index(idx, (ntof - 1).min((t / spec.dt).floor() as u32), ntof);
             #[cfg(target_arch = "nvptx64")]
             unsafe {
                 let ptr = fluence.as_mut_ptr().add(fidx as usize);
@@ -254,11 +197,11 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
-    use rand::SeedableRng;
-    use crate::{PencilSource, VoxelGeometry};
     use super::*;
+    use crate::{PencilSource, VoxelGeometry};
     use ndarray::Array;
+    use rand::SeedableRng;
+    use std::convert::TryInto;
 
     #[test]
     fn two_layer() {
@@ -314,29 +257,27 @@ mod tests {
             },
         ];
         let ndet = dets.len() as u32;
-        let mut media = vec![1u8; (geom.media_dim.x * geom.media_dim.y * geom.media_dim.z).try_into().unwrap()];
+        let mut media = vec![
+            1u8;
+            (geom.media_dim.x * geom.media_dim.y * geom.media_dim.z)
+                .try_into()
+                .unwrap()
+        ];
         let depth = 6u32;
         for v in media[((depth * geom.media_dim.y * geom.media_dim.z) as usize)..].iter_mut() {
             *v = 2u8;
         }
-        let mut fluence = Array::zeros(
-            (geom.media_dim.x as usize, geom.media_dim.y as usize, geom.media_dim.z as usize, ntof as usize)
-        );
-        let mut phi_td  = Array::zeros(
-            (ndet as usize, ntof as usize)
-        );
-        let mut phi_phase= Array::zeros(
-            ndet as usize
-        );
-        let mut phi_dist= Array::zeros(
-            (ndet as usize, ntof as usize, nlayer as usize)
-        );
-        let mut mom_dist= Array::zeros(
-            (ndet as usize, ntof as usize, nlayer as usize)
-        );
-        let mut photon_counter= Array::zeros(
-            (ndet as usize, ntof as usize)
-        );
+        let mut fluence = Array::zeros((
+            geom.media_dim.x as usize,
+            geom.media_dim.y as usize,
+            geom.media_dim.z as usize,
+            ntof as usize,
+        ));
+        let mut phi_td = Array::zeros((ndet as usize, ntof as usize));
+        let mut phi_phase = Array::zeros(ndet as usize);
+        let mut phi_dist = Array::zeros((ndet as usize, ntof as usize, nlayer as usize));
+        let mut mom_dist = Array::zeros((ndet as usize, ntof as usize, nlayer as usize));
+        let mut photon_counter = Array::zeros((ndet as usize, ntof as usize));
         let mut layer_opl_mom = vec![[0f32; 2]; nlayer as usize];
         monte_carlo(
             &spec,
@@ -354,7 +295,9 @@ mod tests {
             photon_counter.as_slice_mut().unwrap(),
             &mut layer_opl_mom,
         );
-        let mut npz = ndarray_npy::NpzWriter::new_compressed(std::io::BufWriter::new(std::fs::File::create("test.npz").unwrap()));
+        let mut npz = ndarray_npy::NpzWriter::new_compressed(std::io::BufWriter::new(
+            std::fs::File::create("test.npz").unwrap(),
+        ));
         npz.add_array("fluence", &fluence).unwrap();
         npz.add_array("phi_td", &phi_td).unwrap();
         npz.add_array("phi_phase", &phi_phase).unwrap();

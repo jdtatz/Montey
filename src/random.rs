@@ -3,74 +3,11 @@
     clippy::unreadable_literal,
     clippy::excessive_precision
 )]
+use crate::utils::*;
 use num_traits::AsPrimitive;
-#[cfg(target_arch = "nvptx64")]
-use nvptx_sys::Float;
 use rand::distributions::uniform::SampleUniform;
 use rand::prelude::{Distribution, Rng};
 pub use rand_xoshiro::Xoroshiro128Plus as PRng;
-
-#[cfg(not(target_arch = "nvptx64"))]
-pub trait Float: 'static + num_traits::Float {
-    const ZERO: Self;
-    const ONE: Self;
-    fn copysign(self, sign: Self) -> Self;
-    fn rsqrt(self) -> Self {
-        Self::ONE / self.sqrt()
-    }
-}
-
-#[cfg(not(target_arch = "nvptx64"))]
-impl Float for f32 {
-    const ZERO: Self = 0f32;
-    const ONE: Self = 1f32;
-
-    fn copysign(self, sign: Self) -> Self {
-        libm::copysignf(self, sign)
-    }
-}
-
-#[cfg(not(target_arch = "nvptx64"))]
-impl Float for f64 {
-    const ZERO: Self = 0f64;
-    const ONE: Self = 1f64;
-
-    fn copysign(self, sign: Self) -> Self {
-        libm::copysign(self, sign)
-    }
-}
-
-pub trait BoolExt {
-    fn then<T, F: FnOnce() -> T>(self, f: F) -> Option<T>;
-    fn then_some<T>(self, t: T) -> Option<T>;
-    fn if_else<T>(self, true_val: T, false_val: T) -> T;
-}
-
-impl BoolExt for bool {
-    fn then<T, F: FnOnce() -> T>(self, f: F) -> Option<T> {
-        if self {
-            Some(f())
-        } else {
-            None
-        }
-    }
-
-    fn then_some<T>(self, t: T) -> Option<T> {
-        if self {
-            Some(t)
-        } else {
-            None
-        }
-    }
-
-    fn if_else<T>(self, true_val: T, false_val: T) -> T {
-        if self {
-            true_val
-        } else {
-            false_val
-        }
-    }
-}
 
 fn polynomial<F: Float + SampleUniform>(z: F, coeff: &[f64]) -> F
 where
