@@ -14,7 +14,7 @@ pub use crate::vector::{UnitVector, Vector};
 mod sources;
 pub use crate::sources::{DiskSource, PencilSource, Source};
 mod geometry;
-pub use crate::geometry::{Geometry, LayeredGeometry, VoxelGeometry};
+pub use crate::geometry::{Geometry, LayeredGeometry, VoxelGeometry, AxialSymetricGeometry};
 mod monte_carlo;
 pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
 
@@ -138,15 +138,17 @@ macro_rules! create_kernel {
             )
         }
     };
-    ($kname:ident $layered_kname:ident $src:ty) => {
+    ($kname:ident $layered_kname:ident $axial_kname:ident $layered_axial_kname:ident $src:ty) => {
         create_kernel!(@call $kname ; source: &$src ; source ; geom: &VoxelGeometry ; geom);
         create_kernel!(@call $layered_kname ; source: &$src ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry>>([geom_ptr as usize, nlayer as usize]));
+        create_kernel!(@call $axial_kname ; source: &$src ; source ; geom: &AxialSymetricGeometry ; geom);
+        create_kernel!(@call $layered_axial_kname ; source: &$src ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry>>([geom_ptr as usize, nlayer as usize]));
     };
 }
 
-create_kernel!(pencil layered_pencil PencilSource);
+create_kernel!(pencil layered_pencil axial_pencil layered_axial_pencil PencilSource);
 // create_kernel!(pencil_array layered_pencil_array [PencilSource]);
-create_kernel!(disk layered_disk DiskSource);
+create_kernel!(disk layered_disk axial_disk layered_axial_disk DiskSource);
 // create_kernel!(disk_array layered_disk_array [PencilSource]);
 
 #[cfg(not(target_arch = "nvptx64"))]
