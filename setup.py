@@ -8,7 +8,7 @@ setup(
     url="https://github.com/jdtatz/Montey/",
     packages=["montey"],
     install_requires=[
-        "cupy~=7.8",
+        "cupy~=8.0",
         "numpy~=1.19",
         "numba~=0.50",
         "xarray~=0.16",
