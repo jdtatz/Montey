@@ -68,11 +68,9 @@ impl BoolExt for bool {
     }
 }
 
-#[track_caller]
-pub(crate) fn safe_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Output {
-    if let Some(v) = slice.get(index) {
-        v
-    } else {
+#[macro_export]
+macro_rules! fast_unreachable {
+    ($message:literal) => {
         #[cfg(target_arch = "nvptx64")]
         unsafe {
             #[cfg(not(debug_assertions))]
@@ -81,7 +79,7 @@ pub(crate) fn safe_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Ou
             {
                 let loc = core::panic::Location::caller();
                 nvptx_sys::__assertfail(
-                    b"safe_index out of bounds\0".as_ptr(),
+                    concat!($message, "\0").as_ptr(),
                     loc.file().as_ptr(),
                     loc.line(),
                     b"\0".as_ptr(),
@@ -90,32 +88,24 @@ pub(crate) fn safe_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Ou
             }
         }
         #[cfg(not(target_arch = "nvptx64"))]
-        unreachable!("safe_index out of bounds")
+        unreachable!($message)
+    };
+}
+
+#[track_caller]
+pub(crate) fn fast_index<T, I: SliceIndex<[T]>>(slice: &[T], index: I) -> &I::Output {
+    if let Some(v) = slice.get(index) {
+        v
+    } else {
+        fast_unreachable!("fast_index out of bounds");
     }
 }
 
 #[track_caller]
-pub(crate) fn safe_index_mut<T, I: SliceIndex<[T]>>(slice: &mut [T], index: I) -> &mut I::Output {
+pub(crate) fn fast_index_mut<T, I: SliceIndex<[T]>>(slice: &mut [T], index: I) -> &mut I::Output {
     if let Some(v) = slice.get_mut(index) {
         v
     } else {
-        #[cfg(target_arch = "nvptx64")]
-        unsafe {
-            #[cfg(not(debug_assertions))]
-            core::hint::unreachable_unchecked();
-            #[cfg(debug_assertions)]
-            {
-                let loc = core::panic::Location::caller();
-                nvptx_sys::__assertfail(
-                    b"safe_index_mut out of bounds\0".as_ptr(),
-                    loc.file().as_ptr(),
-                    loc.line(),
-                    b"\0".as_ptr(),
-                    1,
-                );
-            }
-        }
-        #[cfg(not(target_arch = "nvptx64"))]
-        unreachable!("safe_index_mut out of bounds")
+        fast_unreachable!("fast_index_mut out of bounds");
     }
 }

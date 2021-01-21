@@ -70,7 +70,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
     geom: &G,
     mut rng: PRng,
     detectors: &[Detector],
-    fluence: &mut [f32],
+    mut fluence: Option<&mut [f32]>,
     phi_td: &mut [f32],
     phi_phase: &mut [f32],
     phi_dist: &mut [f32],
@@ -90,8 +90,8 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
         let mut idx = geom.pos2idx(&p);
         let mut weight = 1f32;
         let mut t = 0f32;
-        let mut media_id = *safe_index(media, geom.media_index(idx) as usize);
-        let mut state = safe_index(states, media_id as usize);
+        let mut media_id = *fast_index(media, geom.media_index(idx) as usize);
+        let mut state = fast_index(states, media_id as usize);
         for opl_mom_j in layer_opl_mom.iter_mut() {
             *opl_mom_j = [0f32; 2];
         }
@@ -108,7 +108,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 t += dist * state.n / spec.lightspeed;
                 s -= dist;
                 if media_id > 0 {
-                    *(&mut safe_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) +=
+                    *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) +=
                         dist * state.n;
                     ln_phi -= dist * state.mua;
                     opl += dist * state.n;
@@ -119,13 +119,13 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 }
                 let prev_media_id = core::mem::replace(
                     &mut media_id,
-                    *safe_index(media, geom.media_index(idx) as usize),
+                    *fast_index(media, geom.media_index(idx) as usize),
                 );
                 if media_id == 0 && prev_media_id != 0 {
                     break 'photon;
                 }
                 if media_id != prev_media_id {
-                    state = safe_index(states, media_id as usize);
+                    state = fast_index(states, media_id as usize);
                     let prev_mu_t = core::mem::replace(&mut mu_t, state.mua + state.mus);
                     s *= prev_mu_t / mu_t;
                 }
@@ -138,22 +138,24 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             if media_id == 0 || t >= spec.lifetime_max {
                 break 'photon;
             }
-            *(&mut safe_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) += s * state.n;
+            *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) += s * state.n;
             ln_phi -= s * state.mua;
             opl += s * state.n;
             // absorb
             let delta_weight = weight * state.mua / mu_t;
-            let fidx = geom.fluence_index(idx, (ntof - 1).min((t / spec.dt).floor() as u32), ntof);
-            #[cfg(target_arch = "nvptx64")]
-            unsafe {
-                let ptr = fluence.as_mut_ptr().add(fidx as usize);
-                nvptx_sys::atomic_load_add_f32(ptr, delta_weight);
+            if let Some(fluence) = fluence.as_mut() {
+                let fidx =
+                    geom.fluence_index(idx, (ntof - 1).min((t / spec.dt).floor() as u32), ntof);
+                #[cfg(target_arch = "nvptx64")]
+                unsafe {
+                    let ptr = fluence.as_mut_ptr().add(fidx as usize);
+                    nvptx_sys::atomic_load_add_f32(ptr, delta_weight);
+                }
+                #[cfg(not(target_arch = "nvptx64"))]
+                {
+                    *safe_index_mut(fluence, fidx as usize) += delta_weight;
+                }
             }
-            #[cfg(not(target_arch = "nvptx64"))]
-            {
-                *safe_index_mut(fluence, fidx as usize) += delta_weight;
-            }
-
             weight -= delta_weight;
             // Scatter
             let rand: f32 = rng.gen();
@@ -161,7 +163,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             let st = (1f32 - sqr(ct)).sqrt();
             let [cp, sp]: [f32; 2] = UnitCircle.sample(&mut rng);
             v = photon_scatter(&v, ct, st, cp, sp);
-            *(&mut safe_index_mut(layer_opl_mom, (media_id - 1) as usize)[1]) += 1f32 - ct;
+            *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[1]) += 1f32 - ct;
             // roulette
             const ROULETTE_THRESHOLD: f32 = 1e-4f32;
             const ROULETTE_CONSTANT: f32 = 10f32;
@@ -181,13 +183,13 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 let ntof = ntof as usize;
                 let time_id = (ntof - 1).min((t / spec.dt).floor() as usize);
                 let phi = ln_phi.exp();
-                *safe_index_mut(phi_td, time_id + ntof * i) += phi;
-                *safe_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
-                *safe_index_mut(photon_counter, time_id + ntof * i) += 1;
+                *fast_index_mut(phi_td, time_id + ntof * i) += phi;
+                *fast_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
+                *fast_index_mut(photon_counter, time_id + ntof * i) += 1;
                 for (j, [opl_j, mom_j]) in layer_opl_mom.iter().enumerate() {
                     let distr = phi * opl_j / opl;
-                    *safe_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += distr;
-                    *safe_index_mut(mom_dist, j + nmedia * (time_id + ntof * i)) += phi * mom_j;
+                    *fast_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += distr;
+                    *fast_index_mut(mom_dist, j + nmedia * (time_id + ntof * i)) += phi * mom_j;
                 }
                 break 'detphoton;
             }

@@ -14,7 +14,9 @@ pub use crate::vector::{UnitVector, Vector};
 mod sources;
 pub use crate::sources::{DiskSource, PencilSource, Source};
 mod geometry;
-pub use crate::geometry::{Geometry, LayeredGeometry, VoxelGeometry, AxialSymetricGeometry};
+pub use crate::geometry::{
+    AxialSymetricGeometry, FreeSpaceGeometry, Geometry, LayeredGeometry, VoxelGeometry,
+};
 mod monte_carlo;
 pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
 
@@ -43,7 +45,14 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
     let states = core::slice::from_raw_parts(states, (nmedia + 1) as usize);
     let media = core::slice::from_raw_parts(media, geom.media_size());
     let detectors = core::slice::from_raw_parts(detectors, ndet as usize);
-    let fluence = core::slice::from_raw_parts_mut(fluence, geom.fluence_size(ntof));
+    let fluence = if fluence.is_null() {
+        None
+    } else {
+        Some(core::slice::from_raw_parts_mut(
+            fluence,
+            geom.fluence_size(ntof),
+        ))
+    };
 
     let gid = threadIdx::x() + blockIdx::x() * blockDim::x();
     let rng = core::mem::transmute(rngs.add(gid as usize).read());
@@ -97,16 +106,16 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
 }
 
 macro_rules! create_kernel {
-    (@call $kname:ident ; $($src_args:ident : $src_ty:ty),+ ; $set_src:expr ; $($geom_args:ident : $geom_ty:ty),+ ; $set_geom:expr) => {
+    ($kname:ident ; $($src_args:ident : $src_ty:ty $(,)?)* ; $set_src:expr ; $($geom_args:ident : $geom_ty:ty $(,)?)* ; $set_geom:expr) => {
         #[cfg(target_arch = "nvptx64")]
         #[no_mangle]
         pub unsafe extern "ptx-kernel" fn $kname(
             spec: &MonteCarloSpecification,
-            $($src_args : $src_ty),+,
+            $($src_args : $src_ty,)*
             nmedia: u32,
             states: *const State,
             media: *const u8,
-            $($geom_args : $geom_ty),+,
+            $($geom_args : $geom_ty,)*
             rngs: *const [u64; 2],
             ndet: u32,
             detectors: *const Detector,
@@ -138,17 +147,25 @@ macro_rules! create_kernel {
             )
         }
     };
-    ($kname:ident $layered_kname:ident $axial_kname:ident $layered_axial_kname:ident $src:ty) => {
-        create_kernel!(@call $kname ; source: &$src ; source ; geom: &VoxelGeometry ; geom);
-        create_kernel!(@call $layered_kname ; source: &$src ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry>>([geom_ptr as usize, nlayer as usize]));
-        create_kernel!(@call $axial_kname ; source: &$src ; source ; geom: &AxialSymetricGeometry ; geom);
-        create_kernel!(@call $layered_axial_kname ; source: &$src ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry>>([geom_ptr as usize, nlayer as usize]));
-    };
 }
 
-create_kernel!(pencil layered_pencil axial_pencil layered_axial_pencil PencilSource);
+create_kernel!(pencil ; source: &PencilSource ; source ; geom: &VoxelGeometry ; geom);
+create_kernel!(layered_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(axial_pencil ; source: &PencilSource ; source ; geom: &AxialSymetricGeometry ; geom);
+create_kernel!(layered_axial_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry>>([geom_ptr as usize, nlayer as usize]));
+// create_kernel!(free_space_pencil ; source: &PencilSource ; source ;  ; &FreeSpaceGeometry);
+create_kernel!(layered_free_space_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry>>([geom_ptr as usize, nlayer as usize]));
+
+create_kernel!(disk ; source: &DiskSource ; source ; geom: &VoxelGeometry ; geom);
+create_kernel!(layered_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(axial_disk ; source: &DiskSource ; source ; geom: &AxialSymetricGeometry ; geom);
+create_kernel!(layered_axial_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry>>([geom_ptr as usize, nlayer as usize]));
+// create_kernel!(free_space_disk ; source: &DiskSource ; source ;  ; &FreeSpaceGeometry);
+create_kernel!(layered_free_space_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry>>([geom_ptr as usize, nlayer as usize]));
+
+// create_kernel!(pencil layered_pencil axial_pencil layered_axial_pencil PencilSource);
 // create_kernel!(pencil_array layered_pencil_array [PencilSource]);
-create_kernel!(disk layered_disk axial_disk layered_axial_disk DiskSource);
+// create_kernel!(disk layered_disk axial_disk layered_axial_disk DiskSource);
 // create_kernel!(disk_array layered_disk_array [PencilSource]);
 
 #[cfg(not(target_arch = "nvptx64"))]

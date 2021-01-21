@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, is_dataclass, fields
 from importlib.resources import path
 from numbers import Real
-from typing import Tuple, Sequence, TypeVar, Generic, Optional, Union, Type, Dict, get_type_hints
+from typing import Tuple, List, Sequence, TypeVar, Generic, Optional, Union, Type, Dict, get_type_hints
 try:
     from typing import get_args, get_origin
 except ImportError:
@@ -237,7 +237,7 @@ class Geometry(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def fluence_dim(self, time_dim: int) -> Seq[Tuple[str, int]]:
+    def fluence_dim(self, time_dim: int) -> Tuple[List[str], Tuple[int, ...]]:
         raise NotImplementedError
 
     def extra_args(self) -> Sequence[np.scalar]:
@@ -253,8 +253,8 @@ class VoxelGeometry(Geometry, CudaCompat):
     def kernel_prefix() -> str:
         return ''
 
-    def fluence_dim(self, time_dim: int) -> Seq[Tuple[str, int]]:
-        return ("x", self.media_dim[0]), ("y", self.media_dim[1]), ("z", self.media_dim[2]), ("time", time_dim)
+    def fluence_dim(self, time_dim: int) -> Tuple[List[str], Tuple[int, ...]]:
+        return ["x", "y", "z", "time"], (*self.media_dim, time_dim)
 
 
 
@@ -267,8 +267,19 @@ class AxialSymetricGeometry(Geometry, CudaCompat):
     def kernel_prefix() -> str:
         return 'axial_'
 
-    def fluence_dim(self, time_dim: int) -> Seq[Tuple[str, int]]:
-        return ("r", self.media_dim[0]), ("z", self.media_dim[1]), ("time", time_dim)
+    def fluence_dim(self, time_dim: int) -> Tuple[List[str], Tuple[int, ...]]:
+        return ["r", "z", "time"], (*self.media_dim, time_dim)
+
+
+
+@dataclass
+class FreeSpaceGeometry(Geometry, CudaCompat):
+    @staticmethod
+    def kernel_prefix() -> str:
+        return 'free_space_'
+
+    def fluence_dim(self, time_dim: int) -> Tuple[List[str], Tuple[int, ...]]:
+        return [], ()
 
 
 G = TypeVar("G", bound=Geometry)
@@ -282,7 +293,7 @@ class LayeredGeometry(Geometry, CudaCompat, Generic[G]):
     def kernel_prefix(self) -> str:
         return f'layered_{self.inner.kernel_prefix()}'
 
-    def fluence_dim(self, time_dim: int) -> Seq[Tuple[str, int]]:
+    def fluence_dim(self, time_dim: int) -> Tuple[List[str], Tuple[int, ...]]:
         return self.inner.fluence_dim(time_dim)
 
     def resolve_generic_args(self):
@@ -325,7 +336,7 @@ def monte_carlo(
     ndet = len(detectors)
     ntof = int(np.ceil(spec.lifetime_max / spec.dt))
     nmedia = len(states) - 1
-    fluence_keys, fluence_shape = zip(*geom.fluence_dim(ntof))
+    fluence_keys, fluence_shape = geom.fluence_dim(ntof)
     fluence = cu.zeros(fluence_shape, np.float32)
     phi_td = cu.zeros((nthread, ndet, ntof), np.float32)
     phi_phase = cu.zeros((nthread, ndet), np.float32)

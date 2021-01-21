@@ -1,5 +1,5 @@
-use crate::utils::*;
 use crate::vector::{UnitVector, Vector};
+use crate::{fast_unreachable, utils::*};
 
 pub trait Geometry {
     type Boundary: 'static + Copy + Sized;
@@ -25,6 +25,51 @@ pub trait Geometry {
         v: UnitVector<f32>,
         boundary: Option<Self::Boundary>,
     ) -> bool;
+}
+
+pub struct FreeSpaceGeometry;
+
+impl Geometry for FreeSpaceGeometry {
+    type Boundary = ();
+    type IdxVector = ();
+    fn pos2idx(&self, _pos: &Vector<f32>) -> Self::IdxVector {
+        ()
+    }
+
+    fn media_size(&self) -> usize {
+        0
+    }
+
+    fn fluence_size(&self, _time_dim: u32) -> usize {
+        fast_unreachable!("FreeSpaceGeometry does not support fluence");
+    }
+
+    fn media_index(&self, _index: Self::IdxVector) -> usize {
+        0
+    }
+
+    fn fluence_index(&self, _index: Self::IdxVector, _time_index: u32, _time_dim: u32) -> usize {
+        fast_unreachable!("FreeSpaceGeometry does not support fluence");
+    }
+
+    fn intersection(
+        &self,
+        _prev: Option<Self::Boundary>,
+        _pos: Vector<f32>,
+        _v: UnitVector<f32>,
+        _idx: Self::IdxVector,
+    ) -> (f32, Option<Self::Boundary>) {
+        (core::f32::INFINITY, None)
+    }
+
+    fn index_step(
+        &self,
+        _idx: &mut Self::IdxVector,
+        _v: UnitVector<f32>,
+        _boundary: Option<Self::Boundary>,
+    ) -> bool {
+        false
+    }
 }
 
 pub struct VoxelGeometry {
@@ -350,9 +395,9 @@ impl<G: Geometry> Geometry for LayeredGeometry<G> {
             idx.0,
         );
         let dist_1 = if v.z.is_sign_positive() && idx.1 < (self.layer_bins.len() as u32) {
-            safe_index(&self.layer_bins, idx.1 as usize) - pos.z
+            fast_index(&self.layer_bins, idx.1 as usize) - pos.z
         } else if v.z.is_sign_negative() && idx.1 > 0 {
-            pos.z - safe_index(&self.layer_bins, (idx.1 - 1) as usize)
+            pos.z - fast_index(&self.layer_bins, (idx.1 - 1) as usize)
         } else {
             // core::f32::INFINITY
             return (dist_0, bound.map(LayeredBoundary::Inner));
