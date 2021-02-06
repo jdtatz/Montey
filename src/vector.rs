@@ -2,15 +2,16 @@ use crate::utils::Float;
 use num_traits::{cast, AsPrimitive, NumCast};
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div)]
+#[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div, Display)]
+#[display(fmt = "({}, {}, {})", x, y, z)]
 pub struct Vector<T> {
-    pub(crate) x: T,
-    pub(crate) y: T,
-    pub(crate) z: T,
+    pub x: T,
+    pub y: T,
+    pub z: T,
 }
 
 impl<T> Vector<T> {
-    pub fn new(x: T, y: T, z: T) -> Self {
+    pub const fn new(x: T, y: T, z: T) -> Self {
         Self { x, y, z }
     }
 }
@@ -71,8 +72,8 @@ impl<T: NumCast> Vector<T> {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, Deref, Into)]
-pub struct UnitVector<T>(pub(crate) Vector<T>);
+#[derive(Debug, Copy, Clone, Deref, Into, Display)]
+pub struct UnitVector<T>(pub Vector<T>);
 
 impl UnitVector<f32> {
     pub fn new(v: Vector<f32>) -> Option<Self> {

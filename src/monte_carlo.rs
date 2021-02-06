@@ -37,7 +37,15 @@ fn photon_scatter(v: &Vector<f32>, ct: f32, st: f32, cp: f32, sp: f32) -> UnitVe
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Display)]
+#[display(
+    fmt = "MonteCarloSpecification(n = {}, Δt = {}, t_max = {}, c = {}, ƒ = {})",
+    nphoton,
+    dt,
+    lifetime_max,
+    lightspeed,
+    freq
+)]
 pub struct MonteCarloSpecification {
     pub nphoton: u32,
     pub lifetime_max: f32,
@@ -47,7 +55,8 @@ pub struct MonteCarloSpecification {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Display)]
+#[display(fmt = "State(μ_a = {}, μ_s = {}, g = {}, n = {})", mua, mus, g, n)]
 pub struct State {
     pub mua: f32,
     pub mus: f32,
@@ -56,7 +65,8 @@ pub struct State {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Display)]
+#[display(fmt = "Detector(p = {}, r = {})", position, radius)]
 pub struct Detector {
     pub position: Vector<f32>,
     pub radius: f32,
