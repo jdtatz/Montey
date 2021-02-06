@@ -153,7 +153,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 }
                 #[cfg(not(target_arch = "nvptx64"))]
                 {
-                    *safe_index_mut(fluence, fidx as usize) += delta_weight;
+                    *fast_index_mut(fluence, fidx as usize) += delta_weight;
                 }
             }
             weight -= delta_weight;
@@ -289,7 +289,7 @@ mod tests {
             &geom,
             PRng::seed_from_u64(123456u64),
             &dets,
-            fluence.as_slice_mut().unwrap(),
+            Some(fluence.as_slice_mut().unwrap()),
             phi_td.as_slice_mut().unwrap(),
             phi_phase.as_slice_mut().unwrap(),
             phi_dist.as_slice_mut().unwrap(),

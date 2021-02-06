@@ -150,18 +150,18 @@ macro_rules! create_kernel {
 }
 
 create_kernel!(pencil ; source: &PencilSource ; source ; geom: &VoxelGeometry ; geom);
-create_kernel!(layered_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(layered_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 create_kernel!(axial_pencil ; source: &PencilSource ; source ; geom: &AxialSymetricGeometry ; geom);
-create_kernel!(layered_axial_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(layered_axial_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 // create_kernel!(free_space_pencil ; source: &PencilSource ; source ;  ; &FreeSpaceGeometry);
-create_kernel!(layered_free_space_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(layered_free_space_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 
 create_kernel!(disk ; source: &DiskSource ; source ; geom: &VoxelGeometry ; geom);
-create_kernel!(layered_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(layered_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 create_kernel!(axial_disk ; source: &DiskSource ; source ; geom: &AxialSymetricGeometry ; geom);
-create_kernel!(layered_axial_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(layered_axial_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 // create_kernel!(free_space_disk ; source: &DiskSource ; source ;  ; &FreeSpaceGeometry);
-create_kernel!(layered_free_space_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry>>([geom_ptr as usize, nlayer as usize]));
+create_kernel!(layered_free_space_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 
 // create_kernel!(pencil layered_pencil axial_pencil layered_axial_pencil PencilSource);
 // create_kernel!(pencil_array layered_pencil_array [PencilSource]);

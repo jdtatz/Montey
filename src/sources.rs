@@ -30,27 +30,8 @@ impl<S: Source> Source for [S] {
         // have to use, instead of rng.gen_range(0, self.len())
         // rng.gen::<f32>() => [0, 1)
         let idx = (rng.gen::<f32>() * (self.len() as f32)).floor() as usize;
-        if let Some(src) = self.get(idx) {
+        let src = fast_index(self, idx);
             src.launch(rng)
-        } else {
-            #[cfg(target_arch = "nvptx64")]
-            unsafe {
-                #[cfg(not(debug_assertions))]
-                core::hint::unreachable_unchecked();
-                #[cfg(debug_assertions)]
-                {
-                    nvptx_sys::__assertfail(
-                        b"Unknown error occurred during photon launch from source array\0".as_ptr(),
-                        concat!(file!(), "\0").as_ptr(),
-                        line!(),
-                        b"\0".as_ptr(),
-                        1,
-                    );
-                }
-            }
-            #[cfg(not(target_arch = "nvptx64"))]
-            unreachable!("Unknown error occurred during photon launch from source array")
-        }
     }
 }
 

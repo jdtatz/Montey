@@ -327,9 +327,9 @@ impl Geometry for AxialSymetricGeometry {
     }
 }
 
-pub struct LayeredGeometry<G: Geometry> {
+pub struct LayeredGeometry<G: Geometry, B: ?Sized> {
     pub inner_geometry: G,
-    pub layer_bins: [f32],
+    pub layer_bins: B,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -347,7 +347,9 @@ impl<B> LayeredBoundary<B> {
     }
 }
 
-impl<G: Geometry> Geometry for LayeredGeometry<G> {
+use core::ops::Deref;
+
+impl<G: Geometry> Geometry for LayeredGeometry<G, [f32]> {
     type Boundary = LayeredBoundary<G::Boundary>;
 
     type IdxVector = (G::IdxVector, u32);
