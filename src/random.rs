@@ -3,11 +3,14 @@
     clippy::unreadable_literal,
     clippy::excessive_precision
 )]
-use crate::utils::*;
 use num_traits::AsPrimitive;
-use rand::distributions::uniform::SampleUniform;
-use rand::prelude::{Distribution, Rng};
+use rand::{
+    distributions::uniform::SampleUniform,
+    prelude::{Distribution, Rng},
+};
 pub use rand_xoshiro::Xoroshiro128Plus as PRng;
+
+use crate::utils::*;
 
 fn polynomial<F: Float + SampleUniform>(z: F, coeff: &[f64]) -> F
 where
@@ -59,7 +62,8 @@ const SHAW_Q: &[f64] = &[
 ///
 /// Source:
 /// arXiv:0901.0638v4 [q-fin.CP]
-/// Quantile Mechanics II: Changes of Variables in Monte Carlo methods and GPU-Optimized Normal Quantiles
+/// Quantile Mechanics II: Changes of Variables in Monte Carlo methods and
+/// GPU-Optimized Normal Quantiles
 /// William T. Shaw, Thomas Luu, Nick Brickman
 #[cfg(test)]
 pub fn norminv<F: Float + SampleUniform>(x: F) -> F
@@ -102,7 +106,8 @@ const FAST_SHAW_Q: &[f64] = &[
 ///
 /// Source:
 /// arXiv:0901.0638v5 [q-fin.CP]
-/// Quantile Mechanics II: Changes of Variables in Monte Carlo methods and GPU-Optimized Normal Quantiles
+/// Quantile Mechanics II: Changes of Variables in Monte Carlo methods and
+/// GPU-Optimized Normal Quantiles
 /// William T. Shaw, Thomas Luu, Nick Brickman
 pub fn fast_norminv<F: Float + SampleUniform>(u: F) -> F
 where
@@ -126,9 +131,7 @@ impl<F: Float + SampleUniform> Distribution<F> for StandardNormal
 where
     f64: AsPrimitive<F>,
 {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> F {
-        fast_norminv(rng.gen_range(F::ZERO..=F::ONE))
-    }
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> F { fast_norminv(rng.gen_range(F::ZERO..=F::ONE)) }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -162,9 +165,10 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use approx::assert_relative_eq as assert_almost_eq;
     use statrs::distribution::{InverseCDF, Normal};
+
+    use super::*;
 
     #[test]
     fn test_shaw() {
@@ -191,36 +195,12 @@ mod test {
     fn test_fast_shaw() {
         let n = Normal::new(0.0, 1.0).unwrap();
 
-        assert_almost_eq!(
-            fast_norminv(1e-100),
-            n.inverse_cdf(1e-100),
-            max_relative = 1e-1
-        );
-        assert_almost_eq!(
-            fast_norminv(1e-60),
-            n.inverse_cdf(1e-60),
-            max_relative = 1e-2
-        );
-        assert_almost_eq!(
-            fast_norminv(1e-30),
-            n.inverse_cdf(1e-30),
-            max_relative = 1e-3
-        );
-        assert_almost_eq!(
-            fast_norminv(1e-20),
-            n.inverse_cdf(1e-20),
-            max_relative = 1e-4
-        );
-        assert_almost_eq!(
-            fast_norminv(1e-15),
-            n.inverse_cdf(1e-15),
-            max_relative = 5e-5
-        );
-        assert_almost_eq!(
-            fast_norminv(1e-10),
-            n.inverse_cdf(1e-10),
-            max_relative = 5e-5
-        );
+        assert_almost_eq!(fast_norminv(1e-100), n.inverse_cdf(1e-100), max_relative = 1e-1);
+        assert_almost_eq!(fast_norminv(1e-60), n.inverse_cdf(1e-60), max_relative = 1e-2);
+        assert_almost_eq!(fast_norminv(1e-30), n.inverse_cdf(1e-30), max_relative = 1e-3);
+        assert_almost_eq!(fast_norminv(1e-20), n.inverse_cdf(1e-20), max_relative = 1e-4);
+        assert_almost_eq!(fast_norminv(1e-15), n.inverse_cdf(1e-15), max_relative = 5e-5);
+        assert_almost_eq!(fast_norminv(1e-10), n.inverse_cdf(1e-10), max_relative = 5e-5);
         assert_almost_eq!(fast_norminv(1e-5), n.inverse_cdf(1e-5), max_relative = 2e-8);
         assert_almost_eq!(fast_norminv(0.1), n.inverse_cdf(0.1), max_relative = 3e-8);
         assert_almost_eq!(fast_norminv(0.2), n.inverse_cdf(0.2), max_relative = 3e-8);
@@ -228,21 +208,9 @@ mod test {
         assert_almost_eq!(fast_norminv(0.7), n.inverse_cdf(0.7), max_relative = 3e-8);
         assert_almost_eq!(fast_norminv(0.9), n.inverse_cdf(0.9), max_relative = 3e-8);
         assert_almost_eq!(fast_norminv(0.99), n.inverse_cdf(0.99), max_relative = 3e-8);
-        assert_almost_eq!(
-            fast_norminv(0.999),
-            n.inverse_cdf(0.999),
-            max_relative = 3e-8
-        );
-        assert_almost_eq!(
-            fast_norminv(0.9999),
-            n.inverse_cdf(0.9999),
-            max_relative = 4e-8
-        );
-        assert_almost_eq!(
-            fast_norminv(1.0 - 1e-5),
-            n.inverse_cdf(1.0 - 1e-5),
-            max_relative = 4e-8
-        );
+        assert_almost_eq!(fast_norminv(0.999), n.inverse_cdf(0.999), max_relative = 3e-8);
+        assert_almost_eq!(fast_norminv(0.9999), n.inverse_cdf(0.9999), max_relative = 4e-8);
+        assert_almost_eq!(fast_norminv(1.0 - 1e-5), n.inverse_cdf(1.0 - 1e-5), max_relative = 4e-8);
         assert_almost_eq!(
             fast_norminv(1.0 - 1e-10),
             n.inverse_cdf(1.0 - 1e-10),
@@ -264,4 +232,13 @@ mod test {
             max_relative = 1e-4
         );
     }
+    // TODO Add StandardNormal tests???
+
+    // TODO Add UnitCircle tests
+    #[test]
+    fn test_circle() { unimplemented!() }
+
+    // TODO Add UnitDisc tests
+    #[test]
+    fn test_disc() { unimplemented!() }
 }

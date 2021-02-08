@@ -1,39 +1,32 @@
 use core::slice::SliceIndex;
+
 #[cfg(target_arch = "nvptx64")]
 pub use nvptx_sys::Float;
 
-pub(crate) fn sqr(x: f32) -> f32 {
-    x * x
-}
+pub(crate) fn sqr(x: f32) -> f32 { x * x }
 
 #[cfg(not(target_arch = "nvptx64"))]
 pub trait Float: 'static + num_traits::Float {
     const ZERO: Self;
     const ONE: Self;
     fn copysign(self, sign: Self) -> Self;
-    fn rsqrt(self) -> Self {
-        Self::ONE / self.sqrt()
-    }
+    fn rsqrt(self) -> Self { Self::ONE / self.sqrt() }
 }
 
 #[cfg(not(target_arch = "nvptx64"))]
 impl Float for f32 {
-    const ZERO: Self = 0f32;
     const ONE: Self = 1f32;
+    const ZERO: Self = 0f32;
 
-    fn copysign(self, sign: Self) -> Self {
-        libm::copysignf(self, sign)
-    }
+    fn copysign(self, sign: Self) -> Self { libm::copysignf(self, sign) }
 }
 
 #[cfg(not(target_arch = "nvptx64"))]
 impl Float for f64 {
-    const ZERO: Self = 0f64;
     const ONE: Self = 1f64;
+    const ZERO: Self = 0f64;
 
-    fn copysign(self, sign: Self) -> Self {
-        libm::copysign(self, sign)
-    }
+    fn copysign(self, sign: Self) -> Self { libm::copysign(self, sign) }
 }
 
 pub trait BoolExt {

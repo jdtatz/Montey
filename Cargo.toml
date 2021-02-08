@@ -3,6 +3,7 @@ name = "montey"
 version = "0.0.2"
 authors = ["Julia Tatz <tatz.j@northeastern.edu>"]
 edition = "2018"
+resolver = "2"
 
 [[bin]]
 name = "kernel"

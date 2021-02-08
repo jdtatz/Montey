@@ -1,11 +1,14 @@
-use crate::sources::Source;
-use crate::utils::*;
-use crate::vector::{UnitVector, Vector};
+use core::{f32::consts::TAU as PI_2, mem::replace};
+
+use rand::{prelude::Distribution, Rng};
+
 use crate::{
     random::{PRng, UnitCircle},
+    sources::Source,
+    utils::*,
+    vector::{UnitVector, Vector},
     Geometry,
 };
-use rand::{prelude::Distribution, Rng};
 
 fn henyey_greenstein_phase(g: f32, rand: f32) -> f32 {
     if g != 0f32 {
@@ -47,11 +50,11 @@ fn photon_scatter(v: &Vector<f32>, ct: f32, st: f32, cp: f32, sp: f32) -> UnitVe
     freq
 )]
 pub struct MonteCarloSpecification {
-    pub nphoton: u32,
+    pub nphoton:      u32,
     pub lifetime_max: f32,
-    pub dt: f32,
-    pub lightspeed: f32,
-    pub freq: f32,
+    pub dt:           f32,
+    pub lightspeed:   f32,
+    pub freq:         f32,
 }
 
 #[repr(C)]
@@ -60,8 +63,8 @@ pub struct MonteCarloSpecification {
 pub struct State {
     pub mua: f32,
     pub mus: f32,
-    pub g: f32,
-    pub n: f32,
+    pub g:   f32,
+    pub n:   f32,
 }
 
 #[repr(C)]
@@ -69,7 +72,7 @@ pub struct State {
 #[display(fmt = "Detector(p = {}, r = {})", position, radius)]
 pub struct Detector {
     pub position: Vector<f32>,
-    pub radius: f32,
+    pub radius:   f32,
 }
 
 pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
@@ -91,7 +94,6 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
     // let ndet = detectors.len();
     let nmedia = states.len() - 1;
-    const PI_2: f32 = 2f32 * core::f32::consts::PI;
     // TODO better name
     let omega_wavelength = PI_2 * spec.freq / spec.lightspeed;
 
@@ -118,8 +120,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 t += dist * state.n / spec.lightspeed;
                 s -= dist;
                 if media_id > 0 {
-                    *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) +=
-                        dist * state.n;
+                    *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) += dist * state.n;
                     ln_phi -= dist * state.mua;
                     opl += dist * state.n;
                 }
@@ -127,16 +128,13 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 if outofbounds {
                     break 'photon;
                 }
-                let prev_media_id = core::mem::replace(
-                    &mut media_id,
-                    *fast_index(media, geom.media_index(idx) as usize),
-                );
+                let prev_media_id = replace(&mut media_id, *fast_index(media, geom.media_index(idx) as usize));
                 if media_id == 0 && prev_media_id != 0 {
                     break 'photon;
                 }
                 if media_id != prev_media_id {
                     state = fast_index(states, media_id as usize);
-                    let prev_mu_t = core::mem::replace(&mut mu_t, state.mua + state.mus);
+                    let prev_mu_t = replace(&mut mu_t, state.mua + state.mus);
                     s *= prev_mu_t / mu_t;
                 }
                 let r = geom.intersection(boundary, p, v, idx);
@@ -154,8 +152,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             // absorb
             let delta_weight = weight * state.mua / mu_t;
             if let Some(fluence) = fluence.as_mut() {
-                let fidx =
-                    geom.fluence_index(idx, (ntof - 1).min((t / spec.dt).floor() as u32), ntof);
+                let fidx = geom.fluence_index(idx, (ntof - 1).min((t / spec.dt).floor() as u32), ntof);
                 #[cfg(target_arch = "nvptx64")]
                 unsafe {
                     let ptr = fluence.as_mut_ptr().add(fidx as usize);
@@ -175,15 +172,15 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             v = photon_scatter(&v, ct, st, cp, sp);
             *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[1]) += 1f32 - ct;
             // roulette
-            const ROULETTE_THRESHOLD: f32 = 1e-4f32;
-            const ROULETTE_CONSTANT: f32 = 10f32;
-            const ROULETTE_CONSTANT_RECIP: f32 = 1f32 / ROULETTE_CONSTANT;
+            const ROULETTE_THRESHOLD: f32 = 1e-4;
+            const ROULETTE_SURVIVAL_CHANCE: f32 = 0.1;
+            const ROULETTE_SURVIVAL_CHANCE_RECIP: f32 = 1.0 / ROULETTE_SURVIVAL_CHANCE;
             if weight < ROULETTE_THRESHOLD {
                 let rand: f32 = rng.gen();
-                if rand > ROULETTE_CONSTANT_RECIP {
+                if rand > ROULETTE_SURVIVAL_CHANCE {
                     break 'photon;
                 }
-                weight *= ROULETTE_CONSTANT;
+                weight *= ROULETTE_SURVIVAL_CHANCE_RECIP;
             }
         }
         // detected photons?
@@ -193,10 +190,16 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 let ntof = ntof as usize;
                 let time_id = (ntof - 1).min((t / spec.dt).floor() as usize);
                 let phi = ln_phi.exp();
-                *fast_index_mut(phi_td, time_id + ntof * i) += phi;
+                // TODO record weight as well
+                // TODO Measaure more than just the mean, add in variance and possibly skewness
+                // / higher order moments (or cumulants)
+                let phi_total = fast_index_mut(phi_td, time_id + ntof * i);
+                *phi_total += phi;
+                // TODO Maybe just Path Length not phase
                 *fast_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
                 *fast_index_mut(photon_counter, time_id + ntof * i) += 1;
                 for (j, [opl_j, mom_j]) in layer_opl_mom.iter().enumerate() {
+                    // TODO is this the best way measure layer-partioned phi/opl distribution
                     let distr = phi * opl_j / opl;
                     *fast_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += distr;
                     *fast_index_mut(mom_dist, j + nmedia * (time_id + ntof * i)) += phi * mom_j;
@@ -209,20 +212,23 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
 
 #[cfg(test)]
 mod tests {
+    use std::{convert::TryInto, fs::File, io::BufWriter};
+
+    use ndarray::Array;
+    use ndarray_npy::NpzWriter;
+    use rand::SeedableRng;
+
     use super::*;
     use crate::{PencilSource, VoxelGeometry};
-    use ndarray::Array;
-    use rand::SeedableRng;
-    use std::convert::TryInto;
 
     #[test]
     fn two_layer() {
         let spec = MonteCarloSpecification {
-            nphoton: 100_000,
+            nphoton:      100_000,
             lifetime_max: 5000.0,
-            dt: 100.0,
-            lightspeed: 0.2998,
-            freq: 110e-6,
+            dt:           100.0,
+            lightspeed:   0.2998,
+            freq:         110e-6,
         };
         let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
         let src = PencilSource {
@@ -233,20 +239,20 @@ mod tests {
             State {
                 mua: 0.0,
                 mus: 0.0,
-                g: 1.0,
-                n: 1.4,
+                g:   1.0,
+                n:   1.4,
             },
             State {
                 mua: 3e-2,
                 mus: 10.0,
-                g: 0.9,
-                n: 1.4,
+                g:   0.9,
+                n:   1.4,
             },
             State {
                 mua: 2e-2,
                 mus: 12.0,
-                g: 0.9,
-                n: 1.4,
+                g:   0.9,
+                n:   1.4,
             },
         ];
         let geom = VoxelGeometry {
@@ -257,15 +263,15 @@ mod tests {
         let dets = [
             Detector {
                 position: src.src_pos.clone(),
-                radius: 10.0,
+                radius:   10.0,
             },
             Detector {
                 position: src.src_pos.clone(),
-                radius: 20.0,
+                radius:   20.0,
             },
             Detector {
                 position: src.src_pos.clone(),
-                radius: 30.0,
+                radius:   30.0,
             },
         ];
         let ndet = dets.len() as u32;
@@ -307,9 +313,7 @@ mod tests {
             photon_counter.as_slice_mut().unwrap(),
             &mut layer_opl_mom,
         );
-        let mut npz = ndarray_npy::NpzWriter::new_compressed(std::io::BufWriter::new(
-            std::fs::File::create("test.npz").unwrap(),
-        ));
+        let mut npz = NpzWriter::new_compressed(BufWriter::new(File::create("test.npz").unwrap()));
         npz.add_array("fluence", &fluence).unwrap();
         npz.add_array("phi_td", &phi_td).unwrap();
         npz.add_array("phi_phase", &phi_phase).unwrap();

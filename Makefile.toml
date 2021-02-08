@@ -13,7 +13,6 @@ args = [
     "clippy",
     "--target=nvptx64-nvidia-cuda.json",
     "-Z", "build-std=core,alloc",
-    "-Z", "features=all",
 ]
 
 [tasks.kernel]
@@ -25,7 +24,6 @@ args = [
     "--bin=kernel",
     "--target=nvptx64-nvidia-cuda.json",
     "-Z", "build-std=core,alloc",
-    "-Z", "features=all",
     "--",
     "-Cllvm-args=--nvptx-fma-level=2",
     "-Cllvm-args=--nvptx-prec-divf32=0",

@@ -1,8 +1,6 @@
-use crate::random::UnitDisc;
-use crate::utils::*;
-use crate::{PRng, UnitVector, Vector};
-use rand::prelude::Distribution;
-use rand::Rng;
+use rand::{prelude::Distribution, Rng};
+
+use crate::{random::UnitDisc, utils::*, PRng, UnitVector, Vector};
 
 pub trait Source {
     fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result;
@@ -10,13 +8,9 @@ pub trait Source {
 }
 
 impl<S: Source> Source for &S {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        S::write_name(f)
-    }
+    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result { S::write_name(f) }
 
-    fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) {
-        S::launch(*self, rng)
-    }
+    fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) { S::launch(*self, rng) }
 }
 
 impl<S: Source> Source for [S] {
@@ -31,7 +25,7 @@ impl<S: Source> Source for [S] {
         // rng.gen::<f32>() => [0, 1)
         let idx = (rng.gen::<f32>() * (self.len() as f32)).floor() as usize;
         let src = fast_index(self, idx);
-            src.launch(rng)
+        src.launch(rng)
     }
 }
 
@@ -43,31 +37,23 @@ pub struct PencilSource {
 }
 
 impl Source for PencilSource {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write!(f, "pencil")
-    }
+    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result { write!(f, "pencil") }
 
-    fn launch(&self, _rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) {
-        (self.src_pos, self.src_dir)
-    }
+    fn launch(&self, _rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) { (self.src_pos, self.src_dir) }
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct DiskSource {
-    pub src_pos: Vector<f32>,
-    pub src_dir: UnitVector<f32>,
+    pub src_pos:           Vector<f32>,
+    pub src_dir:           UnitVector<f32>,
     pub orthonormal_basis: [UnitVector<f32>; 2],
-    pub radius: f32,
+    pub radius:            f32,
 }
 
 impl DiskSource {
     pub fn new(src_pos: Vector<f32>, src_dir: UnitVector<f32>, radius: f32) -> Self {
-        let z = UnitVector(Vector {
-            x: 0.0,
-            y: 0.0,
-            z: 1.0,
-        });
+        let z = UnitVector(Vector { x: 0.0, y: 0.0, z: 1.0 });
         let x_vec = *z - *src_dir * src_dir.dot(*z);
         let y_vec = src_dir.cross(x_vec);
         Self {
@@ -80,19 +66,13 @@ impl DiskSource {
 }
 
 impl Source for DiskSource {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        write!(f, "disk")
-    }
+    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result { write!(f, "disk") }
 
     fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) {
         // pre-generate orthonormal_basis
         #[cfg(test)]
         {
-            let z = UnitVector(Vector {
-                x: 0.0,
-                y: 0.0,
-                z: 1.0,
-            });
+            let z = UnitVector(Vector { x: 0.0, y: 0.0, z: 1.0 });
             let x_vec = *z - *self.src_dir * self.src_dir.dot(*z);
             let y_vec = self.src_dir.cross(x_vec);
             approx::assert_ulps_eq!(x_vec.dot(*self.orthonormal_basis[0]), 1.);
@@ -114,3 +94,7 @@ impl Source for DiskSource {
         (p, self.src_dir)
     }
 }
+
+// TODO Add Source tests
+#[cfg(test)]
+mod tests {}

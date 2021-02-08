@@ -14,14 +14,12 @@ pub use crate::vector::{UnitVector, Vector};
 mod sources;
 pub use crate::sources::{DiskSource, PencilSource, Source};
 mod geometry;
-pub use crate::geometry::{
-    AxialSymetricGeometry, FreeSpaceGeometry, Geometry, LayeredGeometry, VoxelGeometry,
-};
+pub use crate::geometry::{AxialSymetricGeometry, FreeSpaceGeometry, Geometry, LayeredGeometry, VoxelGeometry};
 mod monte_carlo;
-pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
-
 #[cfg(target_arch = "nvptx64")]
 use nvptx_sys::{blockDim, blockIdx, threadIdx, Float};
+
+pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
 
 #[cfg(target_arch = "nvptx64")]
 unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
@@ -41,33 +39,28 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
     mom_dist: *mut f32,
     photon_counter: *mut u64,
 ) {
+    use core::slice::{from_raw_parts, from_raw_parts_mut};
+
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
-    let states = core::slice::from_raw_parts(states, (nmedia + 1) as usize);
-    let media = core::slice::from_raw_parts(media, geom.media_size());
-    let detectors = core::slice::from_raw_parts(detectors, ndet as usize);
+    let states = from_raw_parts(states, (nmedia + 1) as usize);
+    let media = from_raw_parts(media, geom.media_size());
+    let detectors = from_raw_parts(detectors, ndet as usize);
     let fluence = if fluence.is_null() {
         None
     } else {
-        Some(core::slice::from_raw_parts_mut(
-            fluence,
-            geom.fluence_size(ntof),
-        ))
+        Some(from_raw_parts_mut(fluence, geom.fluence_size(ntof)))
     };
 
     let gid = threadIdx::x() + blockIdx::x() * blockDim::x();
     let rng = core::mem::transmute(rngs.add(gid as usize).read());
     let len = (ndet * ntof) as usize;
-    let phi_td = core::slice::from_raw_parts_mut(phi_td.add((gid * len) as usize), len as usize);
-    let phi_phase =
-        core::slice::from_raw_parts_mut(phi_phase.add(gid * ndet as usize), ndet as usize);
+    let phi_td = from_raw_parts_mut(phi_td.add((gid * len) as usize), len as usize);
+    let phi_phase = from_raw_parts_mut(phi_phase.add(gid * ndet as usize), ndet as usize);
     let len = (ndet * ntof * nmedia) as usize;
-    let phi_dist =
-        core::slice::from_raw_parts_mut(phi_dist.add((gid * len) as usize), len as usize);
-    let mom_dist =
-        core::slice::from_raw_parts_mut(mom_dist.add((gid * len) as usize), len as usize);
+    let phi_dist = from_raw_parts_mut(phi_dist.add((gid * len) as usize), len as usize);
+    let mom_dist = from_raw_parts_mut(mom_dist.add((gid * len) as usize), len as usize);
     let len = (ndet * ntof) as usize;
-    let photon_counter =
-        core::slice::from_raw_parts_mut(photon_counter.add((gid * len) as usize), len as usize);
+    let photon_counter = from_raw_parts_mut(photon_counter.add((gid * len) as usize), len as usize);
     let (dyn_mem, dyn_mem_size) = nvptx_sys::dynamic_shared_memory();
     let idx = threadIdx::x() * (nmedia as usize);
     if idx * (nmedia as usize) * core::mem::size_of::<[f32; 2]>() >= dyn_mem_size {
@@ -84,8 +77,7 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
             );
         }
     }
-    let shared =
-        core::slice::from_raw_parts_mut((dyn_mem as *mut [f32; 2]).add(idx), nmedia as usize);
+    let shared = from_raw_parts_mut((dyn_mem as *mut [f32; 2]).add(idx), nmedia as usize);
 
     monte_carlo(
         spec,
@@ -153,20 +145,23 @@ create_kernel!(pencil ; source: &PencilSource ; source ; geom: &VoxelGeometry ; 
 create_kernel!(layered_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 create_kernel!(axial_pencil ; source: &PencilSource ; source ; geom: &AxialSymetricGeometry ; geom);
 create_kernel!(layered_axial_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-// create_kernel!(free_space_pencil ; source: &PencilSource ; source ;  ; &FreeSpaceGeometry);
+// create_kernel!(free_space_pencil ; source: &PencilSource ; source ;  ;
+// &FreeSpaceGeometry);
 create_kernel!(layered_free_space_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 
 create_kernel!(disk ; source: &DiskSource ; source ; geom: &VoxelGeometry ; geom);
 create_kernel!(layered_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 create_kernel!(axial_disk ; source: &DiskSource ; source ; geom: &AxialSymetricGeometry ; geom);
 create_kernel!(layered_axial_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-// create_kernel!(free_space_disk ; source: &DiskSource ; source ;  ; &FreeSpaceGeometry);
+// create_kernel!(free_space_disk ; source: &DiskSource ; source ;  ;
+// &FreeSpaceGeometry);
 create_kernel!(layered_free_space_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
 
-// create_kernel!(pencil layered_pencil axial_pencil layered_axial_pencil PencilSource);
-// create_kernel!(pencil_array layered_pencil_array [PencilSource]);
-// create_kernel!(disk layered_disk axial_disk layered_axial_disk DiskSource);
-// create_kernel!(disk_array layered_disk_array [PencilSource]);
+// create_kernel!(pencil layered_pencil axial_pencil layered_axial_pencil
+// PencilSource); create_kernel!(pencil_array layered_pencil_array
+// [PencilSource]); create_kernel!(disk layered_disk axial_disk
+// layered_axial_disk DiskSource); create_kernel!(disk_array layered_disk_array
+// [PencilSource]);
 
 #[cfg(not(target_arch = "nvptx64"))]
 fn main() {}

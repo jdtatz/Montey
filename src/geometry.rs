@@ -1,5 +1,8 @@
-use crate::vector::{UnitVector, Vector};
-use crate::{fast_unreachable, utils::*};
+use crate::{
+    fast_unreachable,
+    utils::*,
+    vector::{UnitVector, Vector},
+};
 
 pub trait Geometry {
     type Boundary: 'static + Copy + Sized;
@@ -19,12 +22,7 @@ pub trait Geometry {
         idx: Self::IdxVector,
     ) -> (f32, Option<Self::Boundary>);
 
-    fn index_step(
-        &self,
-        idx: &mut Self::IdxVector,
-        v: UnitVector<f32>,
-        boundary: Option<Self::Boundary>,
-    ) -> bool;
+    fn index_step(&self, idx: &mut Self::IdxVector, v: UnitVector<f32>, boundary: Option<Self::Boundary>) -> bool;
 }
 
 pub struct FreeSpaceGeometry;
@@ -32,21 +30,16 @@ pub struct FreeSpaceGeometry;
 impl Geometry for FreeSpaceGeometry {
     type Boundary = ();
     type IdxVector = ();
-    fn pos2idx(&self, _pos: &Vector<f32>) -> Self::IdxVector {
-        ()
-    }
 
-    fn media_size(&self) -> usize {
-        0
-    }
+    fn pos2idx(&self, _pos: &Vector<f32>) -> Self::IdxVector { () }
+
+    fn media_size(&self) -> usize { 0 }
 
     fn fluence_size(&self, _time_dim: u32) -> usize {
         fast_unreachable!("FreeSpaceGeometry does not support fluence");
     }
 
-    fn media_index(&self, _index: Self::IdxVector) -> usize {
-        0
-    }
+    fn media_index(&self, _index: Self::IdxVector) -> usize { 0 }
 
     fn fluence_index(&self, _index: Self::IdxVector, _time_index: u32, _time_dim: u32) -> usize {
         fast_unreachable!("FreeSpaceGeometry does not support fluence");
@@ -62,12 +55,7 @@ impl Geometry for FreeSpaceGeometry {
         (core::f32::INFINITY, None)
     }
 
-    fn index_step(
-        &self,
-        _idx: &mut Self::IdxVector,
-        _v: UnitVector<f32>,
-        _boundary: Option<Self::Boundary>,
-    ) -> bool {
+    fn index_step(&self, _idx: &mut Self::IdxVector, _v: UnitVector<f32>, _boundary: Option<Self::Boundary>) -> bool {
         false
     }
 }
@@ -87,7 +75,6 @@ pub enum VoxelBoundary {
 
 impl Geometry for VoxelGeometry {
     type Boundary = VoxelBoundary;
-
     type IdxVector = Vector<u32>;
 
     fn pos2idx(&self, pos: &Vector<f32>) -> Self::IdxVector {
@@ -98,9 +85,7 @@ impl Geometry for VoxelGeometry {
         }
     }
 
-    fn media_size(&self) -> usize {
-        (self.media_dim.x * self.media_dim.y * self.media_dim.z) as usize
-    }
+    fn media_size(&self) -> usize { (self.media_dim.x * self.media_dim.y * self.media_dim.z) as usize }
 
     fn fluence_size(&self, time_dim: u32) -> usize {
         (self.media_dim.x * self.media_dim.y * self.media_dim.z * time_dim) as usize
@@ -111,9 +96,7 @@ impl Geometry for VoxelGeometry {
     }
 
     fn fluence_index(&self, index: Self::IdxVector, time_index: u32, time_dim: u32) -> usize {
-        (time_index
-            + time_dim * (index.z + self.media_dim.z * (index.y + self.media_dim.y * index.x)))
-            as usize
+        (time_index + time_dim * (index.z + self.media_dim.z * (index.y + self.media_dim.y * index.x))) as usize
     }
 
     fn intersection(
@@ -160,49 +143,41 @@ impl Geometry for VoxelGeometry {
         }
     }
 
-    fn index_step(
-        &self,
-        idx: &mut Self::IdxVector,
-        v: UnitVector<f32>,
-        boundary: Option<Self::Boundary>,
-    ) -> bool {
+    fn index_step(&self, idx: &mut Self::IdxVector, v: UnitVector<f32>, boundary: Option<Self::Boundary>) -> bool {
         match boundary {
             Some(VoxelBoundary::X) if v.x.is_sign_positive() => {
                 idx.x += 1;
                 idx.x >= self.media_dim.x
-            }
-            Some(VoxelBoundary::X) if v.x.is_sign_negative() => {
+            },
+            Some(VoxelBoundary::X) if v.x.is_sign_negative() =>
                 if idx.x > 0 {
                     idx.x -= 1;
                     false
                 } else {
                     true
-                }
-            }
+                },
             Some(VoxelBoundary::Y) if v.y.is_sign_positive() => {
                 idx.y += 1;
                 idx.y >= self.media_dim.y
-            }
-            Some(VoxelBoundary::Y) if v.y.is_sign_negative() => {
+            },
+            Some(VoxelBoundary::Y) if v.y.is_sign_negative() =>
                 if idx.y > 0 {
                     idx.y -= 1;
                     false
                 } else {
                     true
-                }
-            }
+                },
             Some(VoxelBoundary::Z) if v.z.is_sign_positive() => {
                 idx.z += 1;
                 idx.z >= self.media_dim.z
-            }
-            Some(VoxelBoundary::Z) if v.z.is_sign_negative() => {
+            },
+            Some(VoxelBoundary::Z) if v.z.is_sign_negative() =>
                 if idx.z > 0 {
                     idx.z -= 1;
                     false
                 } else {
                     true
-                }
-            }
+                },
             _ => false,
         }
     }
@@ -222,7 +197,6 @@ pub enum AxialSymetricBoundary {
 
 impl Geometry for AxialSymetricGeometry {
     type Boundary = AxialSymetricBoundary;
-
     type IdxVector = [u32; 2];
 
     fn pos2idx(&self, pos: &Vector<f32>) -> Self::IdxVector {
@@ -231,13 +205,9 @@ impl Geometry for AxialSymetricGeometry {
         [(pos_r / dr).floor() as u32, (pos.z / dz).floor() as u32]
     }
 
-    fn media_size(&self) -> usize {
-        (self.media_dim[0] * self.media_dim[1]) as usize
-    }
+    fn media_size(&self) -> usize { (self.media_dim[0] * self.media_dim[1]) as usize }
 
-    fn fluence_size(&self, time_dim: u32) -> usize {
-        (self.media_dim[0] * self.media_dim[1] * time_dim) as usize
-    }
+    fn fluence_size(&self, time_dim: u32) -> usize { (self.media_dim[0] * self.media_dim[1] * time_dim) as usize }
 
     fn media_index(&self, index: Self::IdxVector) -> usize {
         let [_nr, nz] = self.media_dim;
@@ -266,62 +236,48 @@ impl Geometry for AxialSymetricGeometry {
         let voxel_z = pos.z - self.voxel_dim[1] * (idx[1] as f32);
         let dr = matches!(prev, Some(AxialSymetricBoundary::Radial(_))).if_else(
             self.voxel_dim[0],
-            v_r.is_sign_positive()
-                .if_else(self.voxel_dim[0] - voxel_r, voxel_r),
+            v_r.is_sign_positive().if_else(self.voxel_dim[0] - voxel_r, voxel_r),
         );
         let dz = matches!(prev, Some(AxialSymetricBoundary::Axial)).if_else(
             self.voxel_dim[1],
-            v.z.is_sign_positive()
-                .if_else(self.voxel_dim[1] - voxel_z, voxel_z),
+            v.z.is_sign_positive().if_else(self.voxel_dim[1] - voxel_z, voxel_z),
         );
 
         let hr = BoolExt::then(v_r != 0f32, || (dr / v_r).abs());
         let hz = BoolExt::then(v.z != 0f32, || (dz / v.z).abs());
 
         match (hr, hz) {
-            (Some(r), Some(z)) if r <= z => (
-                r,
-                Some(AxialSymetricBoundary::Radial(v_r.is_sign_positive())),
-            ),
-            (Some(r), None) => (
-                r,
-                Some(AxialSymetricBoundary::Radial(v_r.is_sign_positive())),
-            ),
+            (Some(r), Some(z)) if r <= z => (r, Some(AxialSymetricBoundary::Radial(v_r.is_sign_positive()))),
+            (Some(r), None) => (r, Some(AxialSymetricBoundary::Radial(v_r.is_sign_positive()))),
             (_, Some(z)) => (z, Some(AxialSymetricBoundary::Axial)),
             // TODO: choose a more correct way of handling odd starts
             _ => (self.voxel_dim[0].min(self.voxel_dim[1]) * 0.5f32, None),
         }
     }
 
-    fn index_step(
-        &self,
-        idx: &mut Self::IdxVector,
-        v: UnitVector<f32>,
-        boundary: Option<Self::Boundary>,
-    ) -> bool {
+    fn index_step(&self, idx: &mut Self::IdxVector, v: UnitVector<f32>, boundary: Option<Self::Boundary>) -> bool {
         match boundary {
             Some(AxialSymetricBoundary::Radial(true)) => {
                 idx[0] += 1;
                 idx[0] >= self.media_dim[0]
-            }
+            },
             Some(AxialSymetricBoundary::Radial(false)) => {
                 if idx[0] > 0 {
                     idx[0] -= 1;
                 }
                 false
-            }
+            },
             Some(AxialSymetricBoundary::Axial) if v.z.is_sign_positive() => {
                 idx[1] += 1;
                 idx[1] >= self.media_dim[1]
-            }
-            Some(AxialSymetricBoundary::Axial) => {
+            },
+            Some(AxialSymetricBoundary::Axial) =>
                 if idx[1] > 0 {
                     idx[1] -= 1;
                     false
                 } else {
                     true
-                }
-            }
+                },
             None => false,
         }
     }
@@ -329,7 +285,7 @@ impl Geometry for AxialSymetricGeometry {
 
 pub struct LayeredGeometry<G: Geometry, B: ?Sized> {
     pub inner_geometry: G,
-    pub layer_bins: B,
+    pub layer_bins:     B,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -347,11 +303,8 @@ impl<B> LayeredBoundary<B> {
     }
 }
 
-use core::ops::Deref;
-
 impl<G: Geometry> Geometry for LayeredGeometry<G, [f32]> {
     type Boundary = LayeredBoundary<G::Boundary>;
-
     type IdxVector = (G::IdxVector, u32);
 
     fn pos2idx(&self, pos: &Vector<f32>) -> Self::IdxVector {
@@ -366,21 +319,14 @@ impl<G: Geometry> Geometry for LayeredGeometry<G, [f32]> {
         (idx_0, idx_1 + 1)
     }
 
-    fn media_size(&self) -> usize {
-        self.layer_bins.len() + 1
-    }
+    fn media_size(&self) -> usize { self.layer_bins.len() + 1 }
 
-    fn fluence_size(&self, time_dim: u32) -> usize {
-        self.inner_geometry.fluence_size(time_dim)
-    }
+    fn fluence_size(&self, time_dim: u32) -> usize { self.inner_geometry.fluence_size(time_dim) }
 
-    fn media_index(&self, index: Self::IdxVector) -> usize {
-        index.1 as usize
-    }
+    fn media_index(&self, index: Self::IdxVector) -> usize { index.1 as usize }
 
     fn fluence_index(&self, index: Self::IdxVector, time_index: u32, time_dim: u32) -> usize {
-        self.inner_geometry
-            .fluence_index(index.0, time_index, time_dim)
+        self.inner_geometry.fluence_index(index.0, time_index, time_dim)
     }
 
     fn intersection(
@@ -390,12 +336,9 @@ impl<G: Geometry> Geometry for LayeredGeometry<G, [f32]> {
         v: UnitVector<f32>,
         idx: Self::IdxVector,
     ) -> (f32, Option<Self::Boundary>) {
-        let (dist_0, bound) = self.inner_geometry.intersection(
-            prev.map(LayeredBoundary::into_inner).flatten(),
-            pos,
-            v,
-            idx.0,
-        );
+        let (dist_0, bound) =
+            self.inner_geometry
+                .intersection(prev.map(LayeredBoundary::into_inner).flatten(), pos, v, idx.0);
         let dist_1 = if v.z.is_sign_positive() && idx.1 < (self.layer_bins.len() as u32) {
             fast_index(&self.layer_bins, idx.1 as usize) - pos.z
         } else if v.z.is_sign_negative() && idx.1 > 0 {
@@ -411,25 +354,22 @@ impl<G: Geometry> Geometry for LayeredGeometry<G, [f32]> {
         }
     }
 
-    fn index_step(
-        &self,
-        idx: &mut Self::IdxVector,
-        v: UnitVector<f32>,
-        boundary: Option<Self::Boundary>,
-    ) -> bool {
+    fn index_step(&self, idx: &mut Self::IdxVector, v: UnitVector<f32>, boundary: Option<Self::Boundary>) -> bool {
         match boundary {
-            Some(LayeredBoundary::Inner(b)) => {
-                self.inner_geometry.index_step(&mut idx.0, v, Some(b))
-            }
+            Some(LayeredBoundary::Inner(b)) => self.inner_geometry.index_step(&mut idx.0, v, Some(b)),
             Some(LayeredBoundary::Layer) if v.z.is_sign_positive() => {
                 idx.1 += 1;
                 false
-            }
+            },
             Some(LayeredBoundary::Layer) => {
                 idx.1 -= 1;
                 false
-            }
+            },
             None => false,
         }
     }
 }
+
+// TODO Add Geometry Tests
+#[cfg(test)]
+mod test {}

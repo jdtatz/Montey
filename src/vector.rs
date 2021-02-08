@@ -1,5 +1,6 @@
-use crate::utils::Float;
 use num_traits::{cast, AsPrimitive, NumCast};
+#[allow(unused_imports)]
+use crate::utils::Float;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div, Display)]
@@ -11,9 +12,7 @@ pub struct Vector<T> {
 }
 
 impl<T> Vector<T> {
-    pub const fn new(x: T, y: T, z: T) -> Self {
-        Self { x, y, z }
-    }
+    pub const fn new(x: T, y: T, z: T) -> Self { Self { x, y, z } }
 }
 
 impl<T> Vector<T>
@@ -28,13 +27,9 @@ where
         }
     }
 
-    pub fn dot(self, rhs: Self) -> T {
-        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
-    }
+    pub fn dot(self, rhs: Self) -> T { self.x * rhs.x + self.y * rhs.y + self.z * rhs.z }
 
-    pub fn norm_sqr(self) -> T {
-        self.dot(self)
-    }
+    pub fn norm_sqr(self) -> T { self.dot(self) }
 
     pub fn cross(self, rhs: Self) -> Self {
         Self {
@@ -84,3 +79,7 @@ impl UnitVector<f32> {
         }
     }
 }
+
+// TODO Add Vector & UnitVector tests
+#[cfg(test)]
+mod tests {}
