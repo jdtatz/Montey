@@ -1,4 +1,4 @@
-use core::{f32::consts::TAU as PI_2, mem::replace};
+use core::mem::replace;
 
 use rand::{prelude::Distribution, Rng};
 
@@ -40,25 +40,23 @@ fn photon_scatter(v: &Vector<f32>, ct: f32, st: f32, cp: f32, sp: f32) -> UnitVe
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display, Serialize, Deserialize)]
 #[display(
-    fmt = "MonteCarloSpecification(n = {}, Δt = {}, t_max = {}, c = {}, ƒ = {})",
+    fmt = "MonteCarloSpecification(n = {}, Δt = {}, t_max = {}, c = {})",
     nphoton,
     dt,
     lifetime_max,
-    lightspeed,
-    freq
+    lightspeed
 )]
 pub struct MonteCarloSpecification {
     pub nphoton:      u32,
     pub lifetime_max: f32,
     pub dt:           f32,
     pub lightspeed:   f32,
-    pub freq:         f32,
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display, Serialize, Deserialize)]
 #[display(fmt = "State(μ_a = {}, μ_s = {}, g = {}, n = {})", mua, mus, g, n)]
 pub struct State {
     pub mua: f32,
@@ -68,7 +66,7 @@ pub struct State {
 }
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display, Serialize, Deserialize)]
 #[display(fmt = "Detector(p = {}, r = {})", position, radius)]
 pub struct Detector {
     pub position: Vector<f32>,
@@ -85,17 +83,16 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
     detectors: &[Detector],
     mut fluence: Option<&mut [f32]>,
     phi_td: &mut [f32],
-    phi_phase: &mut [f32],
-    phi_dist: &mut [f32],
+    phi_path_len: &mut [f32],
+    phi_layer_dist: &mut [f32],
     mom_dist: &mut [f32],
+    photon_weight: &mut [f32],
     photon_counter: &mut [u64],
-    layer_opl_mom: &mut [[f32; 2]],
+    layer_workspace: &mut [[f32; 2]],
 ) {
     let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
     // let ndet = detectors.len();
     let nmedia = states.len() - 1;
-    // TODO better name
-    let omega_wavelength = PI_2 * spec.freq / spec.lightspeed;
 
     for _ in 0..spec.nphoton {
         let (mut p, mut v) = src.launch(&mut rng);
@@ -104,7 +101,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
         let mut t = 0f32;
         let mut media_id = *fast_index(media, geom.media_index(idx) as usize);
         let mut state = fast_index(states, media_id as usize);
-        for opl_mom_j in layer_opl_mom.iter_mut() {
+        for opl_mom_j in layer_workspace.iter_mut() {
             *opl_mom_j = [0f32; 2];
         }
         let mut ln_phi = 0f32;
@@ -120,7 +117,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 t += dist * state.n / spec.lightspeed;
                 s -= dist;
                 if media_id > 0 {
-                    *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) += dist * state.n;
+                    *(&mut fast_index_mut(layer_workspace, (media_id - 1) as usize)[0]) += dist * state.n;
                     ln_phi -= dist * state.mua;
                     opl += dist * state.n;
                 }
@@ -146,7 +143,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             if media_id == 0 || t >= spec.lifetime_max {
                 break 'photon;
             }
-            *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[0]) += s * state.n;
+            *(&mut fast_index_mut(layer_workspace, (media_id - 1) as usize)[0]) += s * state.n;
             ln_phi -= s * state.mua;
             opl += s * state.n;
             // absorb
@@ -170,7 +167,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             let st = (1f32 - sqr(ct)).sqrt();
             let [cp, sp]: [f32; 2] = UnitCircle.sample(&mut rng);
             v = photon_scatter(&v, ct, st, cp, sp);
-            *(&mut fast_index_mut(layer_opl_mom, (media_id - 1) as usize)[1]) += 1f32 - ct;
+            *(&mut fast_index_mut(layer_workspace, (media_id - 1) as usize)[1]) += 1f32 - ct;
             // roulette
             const ROULETTE_THRESHOLD: f32 = 1e-4;
             const ROULETTE_SURVIVAL_CHANCE: f32 = 0.1;
@@ -190,18 +187,16 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 let ntof = ntof as usize;
                 let time_id = (ntof - 1).min((t / spec.dt).floor() as usize);
                 let phi = ln_phi.exp();
-                // TODO record weight as well
                 // TODO Measaure more than just the mean, add in variance and possibly skewness
                 // / higher order moments (or cumulants)
                 let phi_total = fast_index_mut(phi_td, time_id + ntof * i);
                 *phi_total += phi;
-                // TODO Maybe just Path Length not phase
-                *fast_index_mut(phi_phase, i) -= phi * opl * omega_wavelength;
+                *fast_index_mut(phi_path_len, i) += phi * opl;
+                *fast_index_mut(photon_weight, time_id + ntof * i) += weight;
                 *fast_index_mut(photon_counter, time_id + ntof * i) += 1;
-                for (j, [opl_j, mom_j]) in layer_opl_mom.iter().enumerate() {
-                    // TODO is this the best way measure layer-partioned phi/opl distribution
-                    let distr = phi * opl_j / opl;
-                    *fast_index_mut(phi_dist, j + nmedia * (time_id + ntof * i)) += distr;
+                for (j, [opl_j, mom_j]) in layer_workspace.iter().enumerate() {
+                    // TODO is this the best way to measure layer-partioned phi/opl distribution
+                    *fast_index_mut(phi_layer_dist, j + nmedia * (time_id + ntof * i)) += phi * opl_j / opl;
                     *fast_index_mut(mom_dist, j + nmedia * (time_id + ntof * i)) += phi * mom_j;
                 }
                 break 'detphoton;
@@ -228,7 +223,6 @@ mod tests {
             lifetime_max: 5000.0,
             dt:           100.0,
             lightspeed:   0.2998,
-            freq:         110e-6,
         };
         let ntof = (spec.lifetime_max / spec.dt).ceil() as u32;
         let src = PencilSource {
@@ -292,9 +286,10 @@ mod tests {
             ntof as usize,
         ));
         let mut phi_td = Array::zeros((ndet as usize, ntof as usize));
-        let mut phi_phase = Array::zeros(ndet as usize);
-        let mut phi_dist = Array::zeros((ndet as usize, ntof as usize, nlayer as usize));
+        let mut phi_path_len = Array::zeros(ndet as usize);
+        let mut phi_layer_dist = Array::zeros((ndet as usize, ntof as usize, nlayer as usize));
         let mut mom_dist = Array::zeros((ndet as usize, ntof as usize, nlayer as usize));
+        let mut photon_weight = Array::zeros((ndet as usize, ntof as usize));
         let mut photon_counter = Array::zeros((ndet as usize, ntof as usize));
         let mut layer_opl_mom = vec![[0f32; 2]; nlayer as usize];
         monte_carlo(
@@ -307,18 +302,23 @@ mod tests {
             &dets,
             Some(fluence.as_slice_mut().unwrap()),
             phi_td.as_slice_mut().unwrap(),
-            phi_phase.as_slice_mut().unwrap(),
-            phi_dist.as_slice_mut().unwrap(),
+            phi_path_len.as_slice_mut().unwrap(),
+            phi_layer_dist.as_slice_mut().unwrap(),
             mom_dist.as_slice_mut().unwrap(),
+            photon_weight.as_slice_mut().unwrap(),
             photon_counter.as_slice_mut().unwrap(),
             &mut layer_opl_mom,
         );
         let mut npz = NpzWriter::new_compressed(BufWriter::new(File::create("test.npz").unwrap()));
         npz.add_array("fluence", &fluence).unwrap();
         npz.add_array("phi_td", &phi_td).unwrap();
-        npz.add_array("phi_phase", &phi_phase).unwrap();
-        npz.add_array("phi_dist", &phi_dist).unwrap();
+        npz.add_array("phi_path_len", &phi_path_len).unwrap();
+        npz.add_array("phi_layer_dist", &phi_layer_dist).unwrap();
         npz.add_array("mom_dist", &mom_dist).unwrap();
+        npz.add_array("photon_weight", &photon_weight).unwrap();
         npz.add_array("photon_counter", &photon_counter).unwrap();
+        let pickled = serde_json::to_vec(&(spec, states, dets)).unwrap();
+        let pickled = Array::from(pickled);
+        npz.add_array("pickled", &pickled).unwrap();
     }
 }

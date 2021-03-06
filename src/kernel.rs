@@ -4,6 +4,8 @@
 #![allow(clippy::many_single_char_names, clippy::too_many_arguments)]
 #[macro_use]
 extern crate derive_more;
+#[macro_use]
+extern crate serde;
 // http://prng.di.unimi.it/
 
 mod random;
@@ -34,9 +36,10 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
     detectors: *const Detector,
     fluence: *mut f32,
     phi_td: *mut f32,
-    phi_phase: *mut f32,
-    phi_dist: *mut f32,
+    phi_path_len: *mut f32,
+    phi_layer_dist: *mut f32,
     mom_dist: *mut f32,
+    photon_weight: *mut f32,
     photon_counter: *mut u64,
 ) {
     use core::slice::{from_raw_parts, from_raw_parts_mut};
@@ -55,11 +58,12 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
     let rng = core::mem::transmute(rngs.add(gid as usize).read());
     let len = (ndet * ntof) as usize;
     let phi_td = from_raw_parts_mut(phi_td.add((gid * len) as usize), len as usize);
-    let phi_phase = from_raw_parts_mut(phi_phase.add(gid * ndet as usize), ndet as usize);
+    let phi_path_len = from_raw_parts_mut(phi_path_len.add(gid * ndet as usize), ndet as usize);
     let len = (ndet * ntof * nmedia) as usize;
-    let phi_dist = from_raw_parts_mut(phi_dist.add((gid * len) as usize), len as usize);
+    let phi_layer_dist = from_raw_parts_mut(phi_layer_dist.add((gid * len) as usize), len as usize);
     let mom_dist = from_raw_parts_mut(mom_dist.add((gid * len) as usize), len as usize);
     let len = (ndet * ntof) as usize;
+    let photon_weight = from_raw_parts_mut(photon_weight.add((gid * len) as usize), len as usize);
     let photon_counter = from_raw_parts_mut(photon_counter.add((gid * len) as usize), len as usize);
     let (dyn_mem, dyn_mem_size) = nvptx_sys::dynamic_shared_memory();
     let idx = threadIdx::x() * (nmedia as usize);
@@ -89,9 +93,10 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
         detectors,
         fluence,
         phi_td,
-        phi_phase,
-        phi_dist,
+        phi_path_len,
+        phi_layer_dist,
         mom_dist,
+        photon_weight,
         photon_counter,
         shared,
     )
@@ -113,9 +118,10 @@ macro_rules! create_kernel {
             detectors: *const Detector,
             fluence: *mut f32,
             phi_td: *mut f32,
-            phi_phase: *mut f32,
-            phi_dist: *mut f32,
+            phi_path_len: *mut f32,
+            phi_layer_dist: *mut f32,
             mom_dist: *mut f32,
+            photon_weight: *mut f32,
             photon_counter: *mut u64,
         ) {
             let source = $set_src;
@@ -132,9 +138,10 @@ macro_rules! create_kernel {
                 detectors,
                 fluence,
                 phi_td,
-                phi_phase,
-                phi_dist,
+                phi_path_len,
+                phi_layer_dist,
                 mom_dist,
+                photon_weight,
                 photon_counter,
             )
         }

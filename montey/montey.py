@@ -26,7 +26,7 @@ ArrayScalar = TypeVar('ArrayScalar', bound=np.generic)
 DTypeLike = Union[np.dtype, None, Type[ArrayScalar]]
 
 
-def _to_dtype(v, ty, generic_args: Tuple[DTypeLike, ...] = ()) -> np.dtype:
+def _to_dtype(v, ty: Type, generic_args: Tuple[Type, ...] = ()) -> np.dtype:
     orig = get_origin(ty)
     if orig is not None:
         return _to_dtype(v, orig, get_args(ty))
@@ -66,7 +66,7 @@ def _to_dtype(v, ty, generic_args: Tuple[DTypeLike, ...] = ()) -> np.dtype:
     raise NotImplementedError
 
 
-def _to_record(v, ty, generic_args: Tuple[DTypeLike, ...] = ()) -> np.dtype:
+def _to_record(v, ty: Type, generic_args: Tuple[Type, ...] = ()) -> np.dtype:
     orig = get_origin(ty)
     if orig is not None:
         return _to_record(v, orig, get_args(ty))
@@ -101,11 +101,11 @@ def _to_record(v, ty, generic_args: Tuple[DTypeLike, ...] = ()) -> np.dtype:
 
 class CudaCompat(ABC):
     # @abstractmethod
-    def to_dtype(self, generic_args: Tuple[DTypeLike, ...] = ()) -> np.dtype:
+    def to_dtype(self, generic_args: Tuple[Type, ...] = ()) -> np.dtype:
         return _to_dtype(self, type(self), generic_args)
 
     # @abstractmethod
-    def to_record(self, generic_args: Tuple[DTypeLike, ...] = ()) -> np.recarray:
+    def to_record(self, generic_args: Tuple[Type, ...] = ()) -> np.recarray:
         return _to_record(self, type(self), generic_args)
 
 
@@ -168,7 +168,6 @@ class Specification(CudaCompat):
     lifetime_max: Real
     dt: Real
     lightspeed: Real
-    freq: Real
 
 class Source(ABC):
     @abstractmethod
@@ -339,9 +338,10 @@ def monte_carlo(
     fluence_keys, fluence_shape = geom.fluence_dim(ntof)
     fluence = cu.zeros(fluence_shape, np.float32)
     phi_td = cu.zeros((nthread, ndet, ntof), np.float32)
-    phi_phase = cu.zeros((nthread, ndet), np.float32)
-    phi_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
+    phi_path_len = cu.zeros((nthread, ndet), np.float32)
+    phi_layer_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
     mom_dist = cu.zeros((nthread, ndet, ntof, nmedia), np.float32)
+    photon_weight = cu.zeros((nthread, ndet, ntof), np.float32)
     photon_counter = cu.zeros((nthread, ndet, ntof), np.uint64)
 
     args = (
@@ -358,9 +358,10 @@ def monte_carlo(
         cu.asarray(np.stack([d.to_record() for d in detectors]).view(np.uint32)),
         fluence,
         phi_td,
-        phi_phase,
-        phi_dist,
+        phi_path_len,
+        phi_layer_dist,
         mom_dist,
+        photon_weight,
         photon_counter,
     )
 
@@ -383,34 +384,38 @@ def monte_carlo(
 
     return xr.Dataset(
         {
-            "Photons": (
+            "photons": (
                 ["detector", "time"],
                 photon_counter.sum(axis=0, dtype=np.uint64),
             ),
-            "Phi": (
+            "phi": (
                 ["detector", "time"],
                 phi_td.sum(axis=0, dtype=np.float64) / pcount,
                 {"long_name": "Φ"},
             ),
-            "PhiPhase": (
+            "optical_path_len": (
                 ["detector"],
-                phi_phase.sum(axis=0, dtype=np.float64)
+                phi_path_len.sum(axis=0, dtype=np.float64)
                 / phi_td.sum(axis=(0, 2), dtype=np.float64),
-                {"units": ureg.rad, "long_name": "Φ Phase"},
+                {"long_name": "Φ-Weighted Optical Path Length"},
             ),
-            "PhiDist": (
+            "phi_layer_dist": (
                 ["detector", "time", "layer"],
-                phi_dist.sum(axis=0, dtype=np.float64)
+                phi_layer_dist.sum(axis=0, dtype=np.float64)
                 / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
-                {"long_name": "Φ Distribution"},
+                {"long_name": "Φ-Weighted Optical Path Length Layer Distribution"},
             ),
-            "MomDist": (
+            "mom_dist": (
                 ["detector", "time", "layer"],
                 mom_dist.sum(axis=0, dtype=np.float64)
                 / phi_td.sum(axis=(0, 2), dtype=np.float64)[:, None, None],
-                {"long_name": "Φ-Weighted Momentum Transfer Distribution"},
+                {"long_name": "Φ-Weighted Momentum Transfer Layer Distribution"},
             ),
-            "Fluence": (list(fluence_keys), fluence),
+            "fluence": (list(fluence_keys), fluence),
+            "weight": (
+                ["detector", "time"],
+                photon_weight.sum(axis=0, dtype=np.float64) / pcount
+            ),
         },
         coords={
             "time": (

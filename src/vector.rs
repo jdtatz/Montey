@@ -1,9 +1,9 @@
 use num_traits::{cast, AsPrimitive, NumCast};
 #[allow(unused_imports)]
-use crate::utils::Float;
+use crate::utils::*;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div, Display)]
+#[derive(Debug, Copy, Clone, Neg, Add, Sub, Mul, Div, Display, Serialize, Deserialize)]
 #[display(fmt = "({}, {}, {})", x, y, z)]
 pub struct Vector<T> {
     pub x: T,
@@ -67,7 +67,7 @@ impl<T: NumCast> Vector<T> {
 }
 
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, Deref, Into, Display)]
+#[derive(Debug, Copy, Clone, Deref, Into, Display, Serialize, Deserialize)]
 pub struct UnitVector<T>(pub Vector<T>);
 
 impl UnitVector<f32> {

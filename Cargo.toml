@@ -1,6 +1,6 @@
 [package]
 name = "montey"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Julia Tatz <tatz.j@northeastern.edu>"]
 edition = "2018"
 resolver = "2"
@@ -9,23 +9,31 @@ resolver = "2"
 name = "kernel"
 path = "src/kernel.rs"
 
+[[bench]]
+name = "benchmark"
+harness = false
+
 [dependencies]
 derive_more = "0.99"
-num-traits = { version = "0.2", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand_xoshiro = { version = "0.6", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 [target.'cfg(target_arch="nvptx64")'.dependencies]
 nvptx-sys = { git = "https://github.com/jdtatz/nvptx-sys.git", features = ["panic", "fast-math"] }
+num-traits = { version = "0.2", default-features = false }
 
 [target.'cfg(not(target_arch="nvptx64"))'.dependencies]
 libm = "0.2"
+num-traits = { version = "0.2", default-features = false, features = ["libm"] }
 
 [dev-dependencies]
 approx = "0.4"
 statrs = "0.13"
 ndarray = "0.14"
 ndarray-npy = "0.7"
+serde_json = "1.0"
+criterion = "0.3"
 
 [profile.dev]
 opt-level = 2
