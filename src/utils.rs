@@ -1,16 +1,15 @@
 use core::slice::SliceIndex;
 
-#[cfg(target_arch = "nvptx64")]
-pub use nvptx_sys::Float;
-
 #[cfg(not(target_arch = "nvptx64"))]
 #[allow(unused_imports)]
 pub(crate) use num_traits::real::Real;
+#[cfg(target_arch = "nvptx64")]
+pub use nvptx_sys::Float;
 
 pub(crate) fn sqr(x: f32) -> f32 { x * x }
 
 #[cfg(not(target_arch = "nvptx64"))]
-pub trait Float: 'static + num_traits::Float {
+pub trait Float: 'static + num_traits::Float + num_traits::NumAssign {
     const ZERO: Self;
     const ONE: Self;
     fn copysign(self, sign: Self) -> Self;

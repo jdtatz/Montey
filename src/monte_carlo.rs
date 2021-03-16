@@ -117,7 +117,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
                 t += dist * state.n / spec.lightspeed;
                 s -= dist;
                 if media_id > 0 {
-                    *(&mut fast_index_mut(layer_workspace, (media_id - 1) as usize)[0]) += dist * state.n;
+                    fast_index_mut(layer_workspace, (media_id - 1) as usize)[0] += dist * state.n;
                     ln_phi -= dist * state.mua;
                     opl += dist * state.n;
                 }
@@ -143,7 +143,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             if media_id == 0 || t >= spec.lifetime_max {
                 break 'photon;
             }
-            *(&mut fast_index_mut(layer_workspace, (media_id - 1) as usize)[0]) += s * state.n;
+            fast_index_mut(layer_workspace, (media_id - 1) as usize)[0] += s * state.n;
             ln_phi -= s * state.mua;
             opl += s * state.n;
             // absorb
@@ -167,7 +167,7 @@ pub fn monte_carlo<S: Source + ?Sized, G: Geometry + ?Sized>(
             let st = (1f32 - sqr(ct)).sqrt();
             let [cp, sp]: [f32; 2] = UnitCircle.sample(&mut rng);
             v = photon_scatter(&v, ct, st, cp, sp);
-            *(&mut fast_index_mut(layer_workspace, (media_id - 1) as usize)[1]) += 1f32 - ct;
+            fast_index_mut(layer_workspace, (media_id - 1) as usize)[1] += 1f32 - ct;
             // roulette
             const ROULETTE_THRESHOLD: f32 = 1e-4;
             const ROULETTE_SURVIVAL_CHANCE: f32 = 0.1;

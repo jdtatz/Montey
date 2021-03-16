@@ -31,7 +31,7 @@ impl Geometry for FreeSpaceGeometry {
     type Boundary = ();
     type IdxVector = ();
 
-    fn pos2idx(&self, _pos: &Vector<f32>) -> Self::IdxVector { () }
+    fn pos2idx(&self, _pos: &Vector<f32>) -> Self::IdxVector {}
 
     fn media_size(&self) -> usize { 0 }
 

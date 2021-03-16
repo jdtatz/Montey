@@ -10,45 +10,42 @@ use rand::{
 };
 pub use rand_xoshiro::Xoroshiro128Plus as PRng;
 
-use crate::utils::*;
+use crate::{fast_unreachable, utils::*};
 
-fn polynomial<F: Float + SampleUniform>(z: F, coeff: &[f64]) -> F
+fn polynomial<F: Float + SampleUniform, const N: usize>(z: F, coeff: [f64; N]) -> F
 where
     f64: AsPrimitive<F>,
 {
-    let n = coeff.len();
-    if n == 0 {
-        return F::ZERO;
-    }
-    let mut sum = coeff[n - 1].as_();
-    for i in (0..n - 1).rev() {
-        sum = sum.mul_add(z, coeff[i].as_());
-    }
-    sum
+    core::array::IntoIter::new(coeff)
+        .map(AsPrimitive::as_)
+        .reduce(|s, c| s.mul_add(z, c))
+        .unwrap_or_else(|| {
+            fast_unreachable!("`polynomial` called with a zero-sized array");
+        })
 }
 
 #[cfg(test)]
-const SHAW_P: &[f64] = &[
-    1.2533141359896652729,
-    3.0333178251950406994,
-    2.3884158540184385711,
-    0.73176759583280610539,
-    0.085838533424158257377,
-    0.0034424140686962222423,
-    0.000036313870818023761224,
+const SHAW_P: [f64; 8] = [
     4.3304513840364031401e-8,
+    0.000036313870818023761224,
+    0.0034424140686962222423,
+    0.085838533424158257377,
+    0.73176759583280610539,
+    2.3884158540184385711,
+    3.0333178251950406994,
+    1.2533141359896652729,
 ];
 
 #[cfg(test)]
-const SHAW_Q: &[f64] = &[
-    1.0,
-    2.9202373175993672857,
-    2.9373357991677046357,
-    1.2356513216582148689,
-    0.2168237095066675527,
-    0.014494272424798068406,
-    0.00030617264753008793976,
+const SHAW_Q: [f64; 8] = [
     1.3141263119543315917e-6,
+    0.00030617264753008793976,
+    0.014494272424798068406,
+    0.2168237095066675527,
+    1.2356513216582148689,
+    2.9373357991677046357,
+    2.9202373175993672857,
+    1.0,
 ];
 
 /// Fast Non-branching Standard Normal inverse CDF
@@ -77,23 +74,23 @@ where
     (v * p / q).copysign(x - (0.5f64).as_())
 }
 
-const FAST_SHAW_P: &[f64] = &[
-    1.2533141012558299407,
-    2.4101601285733391215,
-    1.3348090307272045436,
-    0.23753954196273241709,
-    0.011900603295838260268,
+const FAST_SHAW_P: [f64; 6] = [
     1.1051591117060895699e-4,
+    0.011900603295838260268,
+    0.23753954196273241709,
+    1.3348090307272045436,
+    2.4101601285733391215,
+    1.2533141012558299407,
 ];
 
-const FAST_SHAW_Q: &[f64] = &[
-    1.0,
-    2.4230267574304831865,
-    1.8481138350821456213,
-    0.50950202270351517687,
-    0.046292707412622896113,
-    0.0010579909915338770381,
+const FAST_SHAW_Q: [f64; 7] = [
     2.5996479253181457637e-6,
+    0.0010579909915338770381,
+    0.046292707412622896113,
+    0.50950202270351517687,
+    1.8481138350821456213,
+    2.4230267574304831865,
+    1.0,
 ];
 
 /// Fast Non-branching Standard Normal inverse CDF
@@ -116,7 +113,7 @@ where
     let half_minus_u = (0.5f64).as_() - u;
     let mut x = (u * 2f64.as_()).copysign(half_minus_u);
     if half_minus_u < F::ZERO {
-        x = x + 2f64.as_();
+        x += 2f64.as_();
     }
     let v = -F::ln(x);
     let p = polynomial(v, FAST_SHAW_P);

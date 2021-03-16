@@ -1,31 +1,38 @@
-use rand::{prelude::Distribution, Rng};
+use rand::{prelude::Distribution, seq::SliceRandom};
 
-use crate::{random::UnitDisc, utils::*, PRng, UnitVector, Vector};
+use crate::{fast_unreachable, random::UnitDisc, utils::*, PRng, UnitVector, Vector};
 
 pub trait Source {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result;
     fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>);
 }
 
 impl<S: Source> Source for &S {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result { S::write_name(f) }
-
     fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) { S::launch(*self, rng) }
 }
 
 impl<S: Source> Source for [S] {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result {
-        S::write_name(f)?;
-        write!(f, "_array")
-    }
-
     fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) {
         // can't use seq::choose b/c bounds check isn't optimized out
         // have to use, instead of rng.gen_range(0, self.len())
         // rng.gen::<f32>() => [0, 1)
-        let idx = (rng.gen::<f32>() * (self.len() as f32)).floor() as usize;
-        let src = fast_index(self, idx);
-        src.launch(rng)
+        if let Some(src) = self.choose(rng) {
+            src.launch(rng)
+        } else {
+            fast_unreachable!("No elements in slice");
+        }
+    }
+}
+
+impl<S: Source, const N: usize> Source for [S; N] {
+    fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) {
+        // can't use seq::choose b/c bounds check isn't optimized out
+        // have to use, instead of rng.gen_range(0, self.len())
+        // rng.gen::<f32>() => [0, 1)
+        if let Some(src) = self.choose(rng) {
+            src.launch(rng)
+        } else {
+            fast_unreachable!("No elements in slice");
+        }
     }
 }
 
@@ -37,8 +44,6 @@ pub struct PencilSource {
 }
 
 impl Source for PencilSource {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result { write!(f, "pencil") }
-
     fn launch(&self, _rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) { (self.src_pos, self.src_dir) }
 }
 
@@ -66,8 +71,6 @@ impl DiskSource {
 }
 
 impl Source for DiskSource {
-    fn write_name(f: &mut dyn core::fmt::Write) -> core::fmt::Result { write!(f, "disk") }
-
     fn launch(&self, rng: &mut PRng) -> (Vector<f32>, UnitVector<f32>) {
         // pre-generate orthonormal_basis
         #[cfg(test)]
