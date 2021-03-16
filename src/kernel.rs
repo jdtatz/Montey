@@ -7,6 +7,8 @@ extern crate derive_more;
 #[macro_use]
 extern crate serde;
 // http://prng.di.unimi.it/
+#[cfg(target_arch = "nvptx64")]
+use generate_extern_wrapper::generate_extern_wrapper;
 
 mod random;
 mod utils;
@@ -24,6 +26,25 @@ use nvptx_sys::{blockDim, blockIdx, threadIdx, Float};
 pub use crate::monte_carlo::{monte_carlo, Detector, MonteCarloSpecification, State};
 
 #[cfg(target_arch = "nvptx64")]
+#[generate_extern_wrapper(
+    format = "{G}{S}",
+    abi = "Rust",  // for dst compat, using "Rust" abi instead of "ptx-kernel" abi
+    generic(
+        param = "G",
+        substitute(type = "VoxelGeometry", format = ""),
+        substitute(type = "LayeredGeometry::<VoxelGeometry, [f32]>", format = "layered_"),
+        substitute(type = "AxialSymetricGeometry", format = "axial_"),
+        substitute(type = "LayeredGeometry::<AxialSymetricGeometry, [f32]>", format = "layered_axial_"),
+        substitute(type = "LayeredGeometry::<FreeSpaceGeometry, [f32]>", format = "layered_free_space_"),
+    ),
+    generic(
+        param = "S",
+        substitute(type = "PencilSource", format = "pencil"),
+        substitute(type = "DiskSource", format = "disk"),
+        // substitute(type = "[PencilSource]", format = "pencil_array"),
+        // substitute(type = "[DiskSource]", format = "disk_array"),
+    )
+)]
 unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
     spec: &MonteCarloSpecification,
     src: &S,
@@ -101,74 +122,6 @@ unsafe fn kernel<S: Source + ?Sized, G: Geometry + ?Sized>(
         shared,
     )
 }
-
-macro_rules! create_kernel {
-    ($kname:ident ; $($src_args:ident : $src_ty:ty $(,)?)* ; $set_src:expr ; $($geom_args:ident : $geom_ty:ty $(,)?)* ; $set_geom:expr) => {
-        #[cfg(target_arch = "nvptx64")]
-        #[no_mangle]
-        pub unsafe extern "ptx-kernel" fn $kname(
-            spec: &MonteCarloSpecification,
-            $($src_args : $src_ty,)*
-            nmedia: u32,
-            states: *const State,
-            media: *const u8,
-            $($geom_args : $geom_ty,)*
-            rngs: *const [u64; 2],
-            ndet: u32,
-            detectors: *const Detector,
-            fluence: *mut f32,
-            phi_td: *mut f32,
-            phi_path_len: *mut f32,
-            phi_layer_dist: *mut f32,
-            mom_dist: *mut f32,
-            photon_weight: *mut f32,
-            photon_counter: *mut u64,
-        ) {
-            let source = $set_src;
-            let geom = $set_geom;
-            kernel(
-                spec,
-                source,
-                nmedia,
-                states,
-                media,
-                geom,
-                rngs,
-                ndet,
-                detectors,
-                fluence,
-                phi_td,
-                phi_path_len,
-                phi_layer_dist,
-                mom_dist,
-                photon_weight,
-                photon_counter,
-            )
-        }
-    };
-}
-
-create_kernel!(pencil ; source: &PencilSource ; source ; geom: &VoxelGeometry ; geom);
-create_kernel!(layered_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-create_kernel!(axial_pencil ; source: &PencilSource ; source ; geom: &AxialSymetricGeometry ; geom);
-create_kernel!(layered_axial_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-// create_kernel!(free_space_pencil ; source: &PencilSource ; source ;  ;
-// &FreeSpaceGeometry);
-create_kernel!(layered_free_space_pencil ; source: &PencilSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-
-create_kernel!(disk ; source: &DiskSource ; source ; geom: &VoxelGeometry ; geom);
-create_kernel!(layered_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<VoxelGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-create_kernel!(axial_disk ; source: &DiskSource ; source ; geom: &AxialSymetricGeometry ; geom);
-create_kernel!(layered_axial_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<AxialSymetricGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-// create_kernel!(free_space_disk ; source: &DiskSource ; source ;  ;
-// &FreeSpaceGeometry);
-create_kernel!(layered_free_space_disk ; source: &DiskSource ; source ; geom_ptr: u64, nlayer: u32 ; core::mem::transmute::<[usize; 2], &LayeredGeometry<FreeSpaceGeometry, [f32]>>([geom_ptr as usize, nlayer as usize]));
-
-// create_kernel!(pencil layered_pencil axial_pencil layered_axial_pencil
-// PencilSource); create_kernel!(pencil_array layered_pencil_array
-// [PencilSource]); create_kernel!(disk layered_disk axial_disk
-// layered_axial_disk DiskSource); create_kernel!(disk_array layered_disk_array
-// [PencilSource]);
 
 #[cfg(not(target_arch = "nvptx64"))]
 fn main() {}

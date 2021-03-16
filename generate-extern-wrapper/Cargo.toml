@@ -1,0 +1,16 @@
+[package]
+name = "generate-extern-wrapper"
+version = "0.0.1"
+authors = ["Julia Tatz <tatz.j@northeastern.edu>"]
+edition = "2018"
+resolver = "2"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = {version="1.0", features = ["full"]}
+quote = "1.0"
+itertools = "0.10"
+dynfmt = { version = "0.1", default-features = false, features = ["curly"] }
+darling = "0.12"

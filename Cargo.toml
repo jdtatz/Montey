@@ -22,6 +22,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"] }
 [target.'cfg(target_arch="nvptx64")'.dependencies]
 nvptx-sys = { git = "https://github.com/jdtatz/nvptx-sys.git", features = ["panic", "fast-math"] }
 num-traits = { version = "0.2", default-features = false }
+generate-extern-wrapper = { path = "generate-extern-wrapper" }
 
 [target.'cfg(not(target_arch="nvptx64"))'.dependencies]
 libm = "0.2"
@@ -44,3 +45,6 @@ lto=true
 
 [profile.release.build-override]
 opt-level=0
+
+[workspace]
+members = ["generate-extern-wrapper"]
